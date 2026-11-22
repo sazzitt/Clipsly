@@ -14,6 +14,7 @@ const mockVideos: Video[] = [
     id: "vid-1",
     filename: "podcast_ep12.mp4",
     original_filename: "Tech Podcast Episode 12.mp4",
+    storage_label: "Local SSD Storage",
     file_path: "data/uploads/vid-1.mp4",
     file_size_bytes: 104857600, // 100 MB
     duration_seconds: 1800.0,

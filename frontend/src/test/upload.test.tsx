@@ -133,6 +133,7 @@ describe("Phase 12: Local Video Upload & Ingestion Pipeline", () => {
     expect(await screen.findByText("Upload & Validation Complete")).toBeInTheDocument();
     expect(screen.getByText("1920x1080 (16:9)")).toBeInTheDocument();
     expect(screen.getByText("h264 / aac")).toBeInTheDocument();
+    expect(screen.getByText("Local SSD Storage")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Inspect Video Details/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /View in Video Library/i })).toBeInTheDocument();
   });

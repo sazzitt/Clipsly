@@ -1,9 +1,10 @@
-from typing import Optional
 from pydantic import BaseModel, ConfigDict
 
 
 class VideoUploadResponse(BaseModel):
-    """Schema for video upload completion response matching docs/05-API.md Section 5.1."""
+    """Schema for video upload completion response matching docs/05-API.md Section 5.1.
+    Internal filesystem paths are strictly withheld to preserve host filesystem privacy.
+    """
     model_config = ConfigDict(from_attributes=True)
 
     id: str
@@ -21,4 +22,5 @@ class VideoUploadResponse(BaseModel):
     audio_channels: int
     status: str
     created_at: str
-    file_path: Optional[str] = None
+    storage_label: str = "Local SSD Storage"
+

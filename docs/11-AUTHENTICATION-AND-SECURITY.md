@@ -70,6 +70,10 @@ Because this is a personal desktop application operating on a secure local lapto
 - **Incremental SHA-256 Checksum:** Calculated on the fly during streaming without re-reading the multi-gigabyte file from disk.
 - **Deterministic Cleanup:** All scratch files in `storage/temp/` are unlinked in a `try...finally` block upon error, timeout, or client disconnect, preventing disk clutter.
 
+### 3.6 Host Filesystem Path Privacy & Zero-Orphan Guarantees
+- **Filesystem Path Privacy:** Internal host paths (such as `C:\Users\...\storage\uploads\...`) are strictly withheld from all public API endpoints (`POST /api/v1/videos/upload`, `GET /api/v1/videos/{video_id}`). Only high-level privacy-safe storage labels (e.g. `Local SSD Storage`) and boolean verification flags (`file_exists: true`) are returned to frontend components. Internal absolute/relative paths remain quarantined to backend database storage and ffmpeg workers.
+- **Zero Orphan Guarantee on Failure:** If a database transaction error or disk error occurs after moving a video to `storage/uploads/`, the ingestion pipeline rolls back the database transaction and unlinks the newly relocated file, guaranteeing zero orphaned persistent files and zero dirty database records.
+
 ---
 
 ## 4. Planned Sections for Phase 04 Specification

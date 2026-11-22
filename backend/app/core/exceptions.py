@@ -92,3 +92,14 @@ class NotImplementedFeatureError(AppException):
             detail=detail,
             error_code="NOT_IMPLEMENTED"
         )
+
+
+class ClientDisconnectError(AppException):
+    def __init__(self, detail: str = "Client disconnected during upload.", details: Optional[Any] = None):
+        super().__init__(
+            status_code=499,
+            detail=detail,
+            error_code="CLIENT_CLOSED_REQUEST",
+            details=details
+        )
+

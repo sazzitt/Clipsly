@@ -5,15 +5,16 @@ import math
 import os
 from pathlib import Path
 import shutil
-from typing import Any, Dict, Tuple
+from typing import Any, Dict, Optional, Tuple
 import uuid
 
-from fastapi import UploadFile
+from fastapi import Request, UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.app.core.config import settings
 from backend.app.core.exceptions import (
     AppException,
+    ClientDisconnectError,
     FileTooLargeError,
     InsufficientStorageError,
     InvalidFileFormatError,
@@ -54,15 +55,20 @@ async def stream_file_to_disk(
     upload_file: UploadFile,
     temp_path: Path,
     max_bytes: int,
-    chunk_size: int
+    chunk_size: int,
+    request: Optional[Request] = None,
 ) -> Tuple[int, str]:
-    """Streams incoming multipart chunks to a temporary disk path with bounded memory and size limit enforcement."""
+    """Streams incoming multipart chunks to a temporary disk path with bounded memory, cancellation detection, and size limit enforcement."""
     total_bytes = 0
     hasher = hashlib.sha256()
 
     try:
         with open(temp_path, "wb") as f:
             while True:
+                if request is not None and await request.is_disconnected():
+                    logger.warning("Client disconnected during upload streaming. Terminating stream.")
+                    raise ClientDisconnectError("Client disconnected during upload.")
+
                 chunk = await upload_file.read(chunk_size)
                 if not chunk:
                     break
@@ -73,7 +79,7 @@ async def stream_file_to_disk(
                     )
                 hasher.update(chunk)
                 f.write(chunk)
-    except Exception:
+    except (Exception, asyncio.CancelledError):
         if temp_path.exists():
             try:
                 temp_path.unlink()
@@ -127,7 +133,7 @@ def _calculate_aspect_ratio(width: int, height: int) -> str:
     return f"{width // common_gcd}:{height // common_gcd}"
 
 
-async def inspect_with_ffprobe(file_path: Path) -> Dict[str, Any]:
+async def inspect_with_ffprobe(file_path: Path, timeout_seconds: float = 30.0) -> Dict[str, Any]:
     """Inspects container and streams using an asynchronous FFprobe child process."""
     cmd = [
         "ffprobe",
@@ -145,10 +151,14 @@ async def inspect_with_ffprobe(file_path: Path) -> Dict[str, Any]:
             stderr=asyncio.subprocess.PIPE
         )
         try:
-            stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=30.0)
+            stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=timeout_seconds)
         except asyncio.TimeoutError:
             proc.kill()
-            raise InvalidFileFormatError("FFprobe timed out while validating video container (30s watchdog limit).")
+            try:
+                await proc.wait()
+            except Exception:
+                pass
+            raise InvalidFileFormatError(f"FFprobe timed out while validating video container ({timeout_seconds:.0f}s watchdog limit).")
     except FileNotFoundError:
         logger.error("FFprobe binary not found on PATH.")
         raise AppException(
@@ -177,11 +187,11 @@ async def inspect_with_ffprobe(file_path: Path) -> Dict[str, Any]:
     if not video_stream:
         raise InvalidFileFormatError("No valid video stream detected in uploaded file.")
 
-    # Detect audio stream
+    # Detect audio stream (audio track presence; actual speech transcription occurs in Phase 13/14)
     audio_stream = next((s for s in streams if s.get("codec_type") == "audio"), None)
     if not audio_stream:
         raise InvalidFileFormatError(
-            "No valid audio stream detected in uploaded file. Clipsly requires speech audio for transcription."
+            "No valid audio stream detected in uploaded file. Clipsly requires an audio track for speech transcription."
         )
 
     # Dimensions
@@ -236,7 +246,12 @@ async def inspect_with_ffprobe(file_path: Path) -> Dict[str, Any]:
     }
 
 
-async def ingest_video(upload_file: UploadFile, db: AsyncSession) -> Video:
+async def ingest_video(
+    upload_file: UploadFile,
+    db: AsyncSession,
+    request: Optional[Request] = None,
+    ffprobe_timeout_seconds: float = 30.0,
+) -> Video:
     """Orchestrates complete upload pipeline: storage check, streaming, validation, atomic finalization, and DB registration."""
     # 1. Storage check
     check_storage_space()
@@ -247,18 +262,20 @@ async def ingest_video(upload_file: UploadFile, db: AsyncSession) -> Video:
 
     # 3. Stream to temp file
     upload_uuid = uuid.uuid4().hex
-    temp_file_path = settings.TEMP_DIR / f"upload_{upload_uuid}.tmp"
+    temp_file_path: Optional[Path] = settings.TEMP_DIR / f"upload_{upload_uuid}.tmp"
+    final_file_path: Optional[Path] = None
 
     try:
         total_bytes, sha256_hash = await stream_file_to_disk(
             upload_file=upload_file,
             temp_path=temp_file_path,
             max_bytes=settings.MAX_UPLOAD_SIZE_BYTES,
-            chunk_size=settings.UPLOAD_CHUNK_SIZE_BYTES
+            chunk_size=settings.UPLOAD_CHUNK_SIZE_BYTES,
+            request=request,
         )
 
         # 4. FFprobe validation
-        metadata = await inspect_with_ffprobe(temp_file_path)
+        metadata = await inspect_with_ffprobe(temp_file_path, timeout_seconds=ffprobe_timeout_seconds)
 
         # 5. Move to final storage location with UUID
         video_id = str(uuid.uuid4())
@@ -306,11 +323,33 @@ async def ingest_video(upload_file: UploadFile, db: AsyncSession) -> Video:
         )
         return video
 
-    except Exception:
+    except (Exception, asyncio.CancelledError) as exc:
+        # Rollback any uncommitted database state
+        try:
+            await db.rollback()
+        except Exception:
+            pass
+
         # Cleanup temp file if still present
-        if temp_file_path.exists():
+        if temp_file_path is not None and temp_file_path.exists():
             try:
                 temp_file_path.unlink()
             except OSError:
                 pass
+
+        # Cleanup persistent file if moved before DB failure
+        if final_file_path is not None and final_file_path.exists():
+            try:
+                final_file_path.unlink()
+            except OSError:
+                pass
+
+        if isinstance(exc, OSError):
+            logger.error("Disk I/O failure during video ingestion: %s", exc)
+            raise AppException(
+                status_code=500,
+                detail=f"Local storage disk write failure: {exc}",
+                error_code="STORAGE_WRITE_ERROR",
+            )
+
         raise

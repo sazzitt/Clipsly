@@ -422,7 +422,7 @@ export const UploadPage: React.FC = () => {
             </CardHeader>
 
             <CardContent className="space-y-5">
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 p-3.5 rounded-xl bg-card/60 border border-border text-xs">
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 p-3.5 rounded-xl bg-card/60 border border-border text-xs">
                 <div>
                   <span className="text-muted-foreground block text-[11px]">Filename</span>
                   <span className="font-medium text-foreground truncate block font-mono mt-0.5">
@@ -445,6 +445,12 @@ export const UploadPage: React.FC = () => {
                   <span className="text-muted-foreground block text-[11px]">Codecs</span>
                   <span className="font-medium text-foreground font-mono mt-0.5 block">
                     {uploadedVideo.video_codec} / {uploadedVideo.audio_codec}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-muted-foreground block text-[11px]">Storage</span>
+                  <span className="font-medium text-emerald-400 font-mono mt-0.5 block">
+                    {uploadedVideo.storage_label || "Local SSD Storage"}
                   </span>
                 </div>
               </div>

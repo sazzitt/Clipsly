@@ -1,6 +1,6 @@
 import os
 from typing import Any, Dict, Optional
-from fastapi import APIRouter, Depends, File, Query, UploadFile, status
+from fastapi import APIRouter, Depends, File, Query, Request, UploadFile, status
 from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -26,11 +26,12 @@ router = APIRouter(prefix="/videos", tags=["Videos"])
     description="Streamingly ingests and validates an uploaded video file to local SSD storage."
 )
 async def upload_video(
+    request: Request,
     file: UploadFile = File(...),
     db: AsyncSession = Depends(get_database)
 ):
     """Handles multipart video file upload, chunked streaming, validation, and registration."""
-    video = await ingest_video(upload_file=file, db=db)
+    video = await ingest_video(upload_file=file, db=db, request=request)
     return VideoUploadResponse(
         id=video.id,
         filename=video.filename,
@@ -47,7 +48,7 @@ async def upload_video(
         audio_channels=video.audio_channels,
         status=video.status,
         created_at=video.created_at.isoformat() if video.created_at else "",
-        file_path=video.file_path,
+        storage_label="Local SSD Storage",
     )
 
 
@@ -164,7 +165,7 @@ async def get_video(
         "id": video.id,
         "filename": video.filename,
         "original_filename": video.original_filename,
-        "file_path": video.file_path,
+        "storage_label": "Local SSD Storage",
         "file_size_bytes": video.file_size_bytes,
         "duration_seconds": video.duration_seconds,
         "width": video.width,

@@ -352,10 +352,10 @@ export const VideoDetailPage: React.FC = () => {
                     </span>
                   </div>
                   <div className="flex items-center justify-between">
-                    <span>Storage File Path:</span>
-                    <code className="font-mono text-zinc-300 text-[11px] truncate max-w-sm">
-                      {video.file_path || "N/A"}
-                    </code>
+                    <span>Storage Location:</span>
+                    <span className="font-mono text-zinc-300 text-[11px]">
+                      {video.storage_label || "Local SSD Storage"}
+                    </span>
                   </div>
                 </div>
               </CardContent>

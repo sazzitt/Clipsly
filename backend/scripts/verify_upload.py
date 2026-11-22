@@ -48,6 +48,11 @@ async def verify():
         print(f"Storage Filename: {video_data['filename']}")
         print(f"Extracted Specs: {video_data['width']}x{video_data['height']} @ {video_data['fps']}fps, {video_data['duration_seconds']}s, {video_data['video_codec']}/{video_data['audio_codec']}")
 
+        # Verify path privacy: no raw file paths in response
+        assert "file_path" not in video_data, "Privacy violation: file_path leaked in upload response!"
+        assert video_data.get("storage_label") == "Local SSD Storage", "Missing or incorrect storage_label"
+        print("Path privacy verified in upload response: raw filesystem path withheld, storage_label present.")
+
         # 2. Verify on SSD
         ssd_path = settings.UPLOAD_DIR / video_data["filename"]
         assert ssd_path.exists(), f"File missing on SSD: {ssd_path}"
@@ -65,8 +70,10 @@ async def verify():
         detail_res = await client.get(f"/api/v1/videos/{video_data['id']}")
         assert detail_res.status_code == 200
         detail = detail_res.json()
+        assert "file_path" not in detail, "Privacy violation: file_path leaked in detail response!"
+        assert detail.get("storage_label") == "Local SSD Storage"
         assert detail["file_exists"] is True
-        print(f"Video Details verified! Child jobs count: {detail['processing_jobs_count']}, clips count: {detail['clips_count']}")
+        print(f"Video Details verified! Path privacy intact. Child jobs: {detail['processing_jobs_count']}, clips: {detail['clips_count']}")
 
         # 5. Clean up uploaded video
         del_res = await client.delete(f"/api/v1/videos/{video_data['id']}?purge_files=true")

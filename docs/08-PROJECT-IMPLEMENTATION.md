@@ -145,10 +145,12 @@ clipsly/
     - Asynchronous chunked streaming upload (`POST /api/v1/videos/upload`) with 1MB bounded buffer, supporting files up to 10 GB without buffering into system RAM.
     - SSD storage headroom pre-check ($\ge 10\text{ GB}$ required) raising 507 Insufficient Storage on low disk space.
     - Real-time SHA256 checksum calculation and size accounting during stream consumption.
-    - Asynchronous subprocess FFprobe container validation (verifying valid video stream, audio speech stream, frame rate, resolution, duration bounds $5\text{m}-120\text{m}$).
+    - Asynchronous subprocess FFprobe container validation (verifying valid video stream, audio track presence — with actual speech activity detection reserved for Phase 13/14 Faster-Whisper processing — frame rate, resolution, duration bounds $5\text{m}-120\text{m}$).
+    - Filesystem path privacy: internal filesystem paths are strictly withheld from public API responses to protect host filesystem privacy; safe storage labels (`Local SSD Storage`) are displayed in the UI.
     - Atomic file relocation from scratch space (`storage/temp/upload_{uuid}.tmp`) to persistent store (`storage/uploads/{video_id}.{ext}`) with path confinement checks.
     - Zero orphaned files: guaranteed cleanup of partial scratch files upon client cancellation, timeout, validation failure, or database rollback.
-    - Duplicate upload policy: identical original filenames are assigned unique UUIDs and stored independently.
+    - Zero orphaned persistent files: if database commit fails after file relocation, the persistent file is immediately unlinked and the transaction rolled back.
+    - Duplicate upload policy: identical original filenames or identical binary content are assigned unique UUIDs and stored independently without collisions or overwrites.
   - **Frontend Upload Experience (`/upload`):**
     - Drag-and-drop dropzone with container badges (`MP4, MKV, MOV, WebM`), max size indicator (`10 GB`), duration guidance (`5 - 120 Min`).
     - Client-side pre-validation (extension, size, empty file checks).
@@ -157,5 +159,5 @@ clipsly/
     - Full client cancellation support via `AbortController`.
     - Finalization spinner during FFprobe container validation.
     - Success summary card with direct one-click navigation to Video Details (`/video/:id`) and Video Library (`/videos`).
-  - **Quality Gates:** 42 backend pytest tests passing (100%); 73 frontend Vitest tests passing (100%); ESLint clean (0 errors, 0 warnings); TypeScript strict check (`tsc -b`) clean; Vite production build clean (9.33s).
+  - **Quality Gates:** 51 backend pytest tests passing (100%); 73 frontend Vitest tests passing (100%); ESLint clean (0 errors, 0 warnings); TypeScript strict check (`tsc -b`) clean; Vite production build clean (8.44s).
 - **Execution Target:** Audio Extraction & Media Metadata Pipeline begins in **Phase 13**.

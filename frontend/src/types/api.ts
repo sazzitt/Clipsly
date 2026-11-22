@@ -52,6 +52,7 @@ export interface Video {
   filename: string;
   original_filename: string;
   original_name?: string;
+  storage_label?: string;
   file_path?: string;
   file_size_bytes: number;
   duration_seconds: number;

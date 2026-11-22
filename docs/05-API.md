@@ -255,10 +255,11 @@ Every non-2xx HTTP response adheres strictly to this format:
   - Maximum file size: 10 GB (enforced during streaming in 1MB chunks).
   - Minimum duration: 5 minutes ($300\text{s}$); Maximum duration: 120 minutes ($7200\text{s}$).
   - Disk free space must be $\ge 10\text{ GB}$ checked via `shutil.disk_usage`.
-  - Must contain both a readable video stream and a speech audio stream verified by an asynchronous `ffprobe` subprocess.
+  - Must contain both a readable video stream and an audio stream verified by an asynchronous `ffprobe` subprocess (audio track presence; actual speech transcription occurs in Phase 13/14).
   - Zero-byte files and corrupt containers are rejected.
 - **Response Status:** `201 Created`.
 - **Response Schema (`VideoUploadResponse`):**
+  *(Internal filesystem paths are strictly withheld from responses to preserve host filesystem privacy; a safe storage label is returned instead.)*
   ```json
   {
     "id": "e4b2d188-7f3c-4a3a-96e7-8b0108ec73d4",
@@ -276,7 +277,7 @@ Every non-2xx HTTP response adheres strictly to this format:
     "audio_channels": 2,
     "status": "READY",
     "created_at": "2026-11-22T13:40:00Z",
-    "file_path": "storage/uploads/e4b2d188-7f3c-4a3a-96e7-8b0108ec73d4.mp4"
+    "storage_label": "Local SSD Storage"
   }
   ```
 - **Errors:**

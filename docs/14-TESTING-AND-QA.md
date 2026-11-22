@@ -510,10 +510,20 @@ backend/tests/test_upload_api.py::test_upload_low_disk_space_rejection PASSED [ 
 backend/tests/test_upload_api.py::test_upload_duration_limits_enforced PASSED [ 97%]
 backend/tests/test_upload_api.py::test_duplicate_filename_preserves_unique_records PASSED [100%]
 
-============================= 42 passed in 3.21s ==============================
+backend/tests/test_upload_api.py::test_upload_valid_mov PASSED           [ 84%]
+backend/tests/test_upload_api.py::test_path_privacy_no_raw_paths_in_response PASSED [ 86%]
+backend/tests/test_upload_api.py::test_ffprobe_timeout_cleanup PASSED    [ 88%]
+backend/tests/test_upload_api.py::test_ffprobe_missing_binary PASSED     [ 90%]
+backend/tests/test_upload_api.py::test_disk_write_failure_cleanup PASSED [ 92%]
+backend/tests/test_upload_api.py::test_db_commit_failure_cleans_persistent_file PASSED [ 94%]
+backend/tests/test_upload_api.py::test_client_cancellation_during_upload PASSED [ 96%]
+backend/tests/test_route_handles_client_disconnect PASSED                [ 98%]
+backend/tests/test_upload_api.py::test_duplicate_content_behavior PASSED [100%]
+
+============================= 51 passed in 4.23s ==============================
 ```
-- **Tests Passing:** 42/42.
-- **Coverage Areas:** Multipart streaming upload, valid MP4/MKV/WebM container inspection with FFprobe, extension rejection, empty file rejection, 10GB size limit streaming enforcement, corrupt video rejection, missing video stream rejection, low SSD disk space rejection (507 Insufficient Storage), minimum duration enforcement ($5\text{m}$ bounds), and duplicate filename handling.
+- **Tests Passing:** 51/51.
+- **Coverage Areas:** Multipart streaming upload, valid MP4/MKV/WebM/MOV container inspection with FFprobe, extension rejection, empty file rejection, 10GB size limit streaming enforcement, corrupt video rejection, missing video stream rejection, audio track presence verification (speech detection reserved for Phase 13/14 Faster-Whisper processing), low SSD disk space rejection (507 Insufficient Storage), minimum duration enforcement ($5\text{m}$ bounds), duplicate filename handling, duplicate content handling, FFprobe timeout and process kill, missing FFprobe binary detection (500 `FFPROBE_NOT_FOUND`), disk write failure handling (`STORAGE_WRITE_ERROR`), persistent file cleanup on database commit failure (zero orphaned files), client upload cancellation and disconnect detection (499 `CLIENT_CLOSED_REQUEST`), and filesystem path privacy verification (no raw filesystem paths exposed in responses).
 
 ### 11.3 Real Ingestion Verification
 - Real MP4 video fixture generated on-the-fly and ingested via `POST /api/v1/videos/upload`.
@@ -542,5 +552,5 @@ During Phase 19, this document will be expanded to include:
 ## 13. Current Status & Next Steps
 
 - **Status:** PHASE 12 COMPLETED & VERIFIED.
-- **Active Suites:** 42 backend pytest tests passing (100%), 73 frontend Vitest tests passing (100%), ESLint clean (0 errors, 0 warnings), TypeScript build clean.
+- **Active Suites:** 51 backend pytest tests passing (100%), 73 frontend Vitest tests passing (100%), ESLint clean (0 errors, 0 warnings), TypeScript build clean.
 - **Next Phase:** Proceed to Phase 13 upon user approval.
