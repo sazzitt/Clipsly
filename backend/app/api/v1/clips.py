@@ -50,10 +50,11 @@ class UpdateClipRequest(BaseModel):
     status: Optional[str] = Field(None)
 
 
-def _serialize_clip(clip: Clip) -> Dict[str, Any]:
+def _serialize_clip(clip: Clip, video_filename: Optional[str] = None) -> Dict[str, Any]:
     return {
         "id": clip.id,
         "video_id": clip.video_id,
+        "video_filename": video_filename,
         "highlight_id": clip.highlight_id,
         "title": clip.title,
         "start_ms": clip.start_ms,
@@ -97,7 +98,8 @@ async def create_clip(
     # Verify video existence
     v_stmt = select(Video).where(Video.id == payload.video_id)
     v_result = await db.execute(v_stmt)
-    if not v_result.scalar_one_or_none():
+    video = v_result.scalar_one_or_none()
+    if not video:
         raise NotFoundError(f"Source video '{payload.video_id}' was not found.")
 
     clip = Clip(
@@ -124,7 +126,7 @@ async def create_clip(
     await db.commit()
     await db.refresh(clip)
 
-    return _serialize_clip(clip)
+    return _serialize_clip(clip, video_filename=video.filename)
 
 
 @router.get(
@@ -132,29 +134,55 @@ async def create_clip(
     response_model=PaginatedResponse[Dict[str, Any]],
     status_code=status.HTTP_200_OK,
     summary="List Clips",
-    description="Retrieves a paginated list of clips with optional video UUID filter."
+    description="Retrieves a paginated list of clips with search, status filtering, and sorting."
 )
 async def list_clips(
     video_id: Optional[str] = Query(None, description="Filter clips by video UUID"),
+    clip_status: Optional[str] = Query(None, alias="status", description="Filter clips by status"),
+    search: Optional[str] = Query(None, description="Search clips by title"),
+    sort_by: str = Query("created_at", description="Field to sort by: created_at, title, duration_ms, start_ms"),
+    order: str = Query("desc", description="Sort order: asc or desc"),
     page: int = Query(1, ge=1, description="Page number"),
     limit: int = Query(20, ge=1, le=100, description="Items per page"),
     db: AsyncSession = Depends(get_database)
 ):
-    """Lists clips from the database."""
+    """Lists clips from the database with filtering and search."""
     offset = (page - 1) * limit
     filters = []
+
     if video_id:
         filters.append(Clip.video_id == video_id)
+    if clip_status and clip_status.strip() and clip_status.upper() != "ALL":
+        filters.append(Clip.status == clip_status.strip().upper())
+    if search:
+        filters.append(Clip.title.ilike(f"%{search.strip()}%"))
 
     count_stmt = select(func.count(Clip.id)).where(*filters)
     total_result = await db.execute(count_stmt)
     total = total_result.scalar_one()
 
-    stmt = select(Clip).where(*filters).order_by(Clip.created_at.desc()).offset(offset).limit(limit)
-    result = await db.execute(stmt)
-    clips = result.scalars().all()
+    sort_mapping = {
+        "created_at": Clip.created_at,
+        "title": Clip.title,
+        "duration_ms": Clip.duration_ms,
+        "start_ms": Clip.start_ms,
+        "status": Clip.status,
+    }
+    sort_column = sort_mapping.get(sort_by, Clip.created_at)
+    order_clause = sort_column.asc() if order.lower() == "asc" else sort_column.desc()
 
-    items = [_serialize_clip(c) for c in clips]
+    stmt = (
+        select(Clip, Video.filename)
+        .outerjoin(Video, Clip.video_id == Video.id)
+        .where(*filters)
+        .order_by(order_clause)
+        .offset(offset)
+        .limit(limit)
+    )
+    result = await db.execute(stmt)
+    rows = result.all()
+
+    items = [_serialize_clip(clip, video_filename=v_filename) for clip, v_filename in rows]
     return PaginatedResponse(items=items, total=total, limit=limit, offset=offset)
 
 
@@ -169,14 +197,19 @@ async def get_clip(
     db: AsyncSession = Depends(get_database)
 ):
     """Retrieves single clip by ID."""
-    stmt = select(Clip).where(Clip.id == clip_id)
+    stmt = (
+        select(Clip, Video.filename)
+        .outerjoin(Video, Clip.video_id == Video.id)
+        .where(Clip.id == clip_id)
+    )
     result = await db.execute(stmt)
-    clip = result.scalar_one_or_none()
+    row = result.first()
 
-    if not clip:
+    if not row:
         raise NotFoundError(f"Clip with id '{clip_id}' was not found.")
 
-    return _serialize_clip(clip)
+    clip, v_filename = row
+    return _serialize_clip(clip, video_filename=v_filename)
 
 
 @router.patch(

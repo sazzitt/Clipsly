@@ -147,6 +147,20 @@ Due to the complex interactions between Windows 11 host environments, NVIDIA GPU
 - **Resolution Playbook:**
   1. Use `screen.getAllByText(...)` with assertions on element count (`expect(screen.getAllByText("Processing").length).toBeGreaterThanOrEqual(1)`) or scope queries to specific container elements (`within(container).getByText(...)`).
 
+### 2.19 `MissingGreenlet` Exception During Async SQLAlchemy Serialization
+- **Symptom:** Backend 500 error or pytest failure: `sqlalchemy.exc.StatementError: (sqlalchemy.exc.MissingGreenlet) greenlet_spawn has not been called`.
+- **Root Cause:** Attempting to access an un-loaded lazy relationship attribute (such as `clip.video.filename` or `export.clip.title`) inside an async route handler without an explicit async greenlet context. SQLAlchemy 2.0 async sessions prohibit synchronous implicit I/O.
+- **Resolution Playbook:**
+  1. Never access un-eager-loaded relationships inside serialization helper routines.
+  2. Perform explicit SQL joins in the query (`outerjoin(Video, Clip.video_id == Video.id)`) and select the required scalar columns directly (e.g., `Video.filename.label("video_filename")`).
+  3. Pass the fetched scalar values into serialization functions as explicit arguments.
+
+### 2.20 Option Dropdown Text Collisions in Component Tests
+- **Symptom:** Vitest error: `TestingLibraryElementError: Found multiple elements with the text: Ready` when checking `<EntityStatusBadge>`.
+- **Root Cause:** Filter select dropdowns render `<option value="READY">Ready</option>` in the DOM alongside rendered badge elements `<Badge>Ready</Badge>`.
+- **Resolution Playbook:**
+  1. Use `screen.getAllByText("Ready").length >= 1` or query the badge specifically via container scoping `within(container).getByText("Ready")`.
+
 ---
 
 ## 3. Automated Diagnostics Scripts (Planned for Phase 18)
@@ -170,6 +184,6 @@ During Phase 18 through 20, this document will be expanded to include:
 
 ## 5. Current Status & Next Steps
 
-- **Status:** ACTIVE & EXPANDED (Phase 06, 07, 08, 09 playbooks documented).
-- **Immediate Dependency:** Phase 10 audio extraction and media pipeline.
+- **Status:** ACTIVE & EXPANDED (Phase 06, 07, 08, 09, 10, 11 playbooks documented).
+- **Immediate Dependency:** Phase 12 Local Video Upload & Ingestion Pipeline.
 - **Execution Target:** Phase 18 through Phase 20 for full automation.

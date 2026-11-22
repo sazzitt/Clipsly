@@ -11,6 +11,9 @@ import { ExportsPage } from "../features/exports/ExportsPage";
 import { SettingsPage } from "../features/settings/SettingsPage";
 import { BackendHealthProvider } from "../components/providers/BackendHealthProvider";
 
+import { ToastProvider } from "../components/ui/toast";
+import { JobsPage } from "../features/jobs/JobsPage";
+
 // Test helper to render memory router
 function renderWithRouter(initialRoute = "/") {
   const routes = [
@@ -18,13 +21,16 @@ function renderWithRouter(initialRoute = "/") {
       path: "/",
       element: (
         <BackendHealthProvider autoPoll={false}>
-          <AppLayout />
+          <ToastProvider>
+            <AppLayout />
+          </ToastProvider>
         </BackendHealthProvider>
       ),
       children: [
         { index: true, element: <DashboardPage /> },
         { path: "videos", element: <VideoLibraryPage /> },
         { path: "upload", element: <UploadPage /> },
+        { path: "jobs", element: <JobsPage /> },
         { path: "clips", element: <ClipsLibraryPage /> },
         { path: "exports", element: <ExportsPage /> },
         { path: "settings", element: <SettingsPage /> },
@@ -90,6 +96,23 @@ describe("Application Routing & Navigation", () => {
         };
       }
 
+      if (
+        url.includes("/api/v1/videos") ||
+        url.includes("/api/v1/jobs") ||
+        url.includes("/api/v1/clips") ||
+        url.includes("/api/v1/exports")
+      ) {
+        return {
+          ok: true,
+          json: async () => ({
+            items: [],
+            total: 0,
+            limit: 20,
+            offset: 0,
+          }),
+        };
+      }
+
       return {
         ok: true,
         json: async () => ({
@@ -113,7 +136,13 @@ describe("Application Routing & Navigation", () => {
   it("renders the Video Library page on '/videos'", async () => {
     renderWithRouter("/videos");
     expect(await screen.findByRole("heading", { name: "Video Library" })).toBeInTheDocument();
-    expect(screen.getByText("No Videos Ingested Yet")).toBeInTheDocument();
+    expect(screen.getByText("No Videos Ingested")).toBeInTheDocument();
+  });
+
+  it("renders the Processing Jobs page on '/jobs'", async () => {
+    renderWithRouter("/jobs");
+    expect(await screen.findByRole("heading", { name: "Processing Jobs" })).toBeInTheDocument();
+    expect(screen.getByText("No Background Tasks Queued")).toBeInTheDocument();
   });
 
   it("renders the Upload page on '/upload'", async () => {

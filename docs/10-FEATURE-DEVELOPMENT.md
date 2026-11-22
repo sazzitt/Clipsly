@@ -81,9 +81,12 @@ Every feature follows a disciplined 5-stage lifecycle:
 
 ## 4. Operational Status & Next Steps
 
-- **Status:** ACTIVE (Phase 10 Complete).
-- **Current Baseline:** Backend API infrastructure, 8 ORM models, Alembic migrations, 3 middlewares, 26 pytest tests passing; Frontend workstation design system, dashboard overview feature, 17 UI primitives, 9 workstation components, showcase route, and 56 Vitest tests passing.
-- **Dashboard Architecture:**
-  - Single consolidated telemetry endpoint (`GET /api/v1/system/dashboard`) delivering real SQLite counts, true Clipsly storage metrics, hardware telemetry, and recent videos/jobs.
-  - Reusable React components under `frontend/src/features/dashboard/components/` consuming typed API client and `useDashboardData` hook.
-- **Next Phase:** Phase 11 (Local Video Upload & Ingestion Pipeline).
+- **Status:** ACTIVE (Phase 11 Complete).
+- **Current Baseline:**
+  - Backend: 8 SQLAlchemy ORM models, Alembic migrations, 3 security and telemetry middlewares, 7 domain routers with server-side search, filtering, allowlisted sorting, pagination, and cascade management; 31 pytest tests passing in 1.86s.
+  - Frontend: Workstation design system, 17 UI primitives, 9 workstation modules, 7 management components (`SearchInput`, `FilterSelect`, `SortSelector`, `PaginationControls`, `DeleteConfirmationDialog`, `NoResultsState`, `EntityStatusBadge`), 5 complete management views (`/videos`, `/video/:id`, `/jobs`, `/clips`, `/exports`), and 64 Vitest tests passing in 9.27s.
+  - Code Quality: ESLint clean (0 errors, 0 warnings), TypeScript strict check (`tsc -b`) passing with 0 errors, Vite production build clean in 9.84s.
+- **Project Management System Architecture (Phase 11):**
+  - Standardized management controls across all entity views with debounce search inputs, status filter dropdowns, and URL/state synchronization.
+  - Safe cascade deletion dialogs requiring explicit user action, with strict protection of rendered MP4 exports on SSD according to ADR-008.
+- **Next Phase:** Phase 12 (Local Video Upload & Ingestion Pipeline).

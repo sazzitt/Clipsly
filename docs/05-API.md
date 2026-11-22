@@ -276,17 +276,28 @@ Every non-2xx HTTP response adheres strictly to this format:
 - **Errors:** `400 Bad Request` (Invalid container), `507 Insufficient Storage`.
 
 ### 5.2 `GET /api/v1/videos`
-- **Purpose:** Lists all ingested videos with pagination and status filtering.
+- **Purpose:** Lists all ingested videos with pagination, substring search, status filtering, and allowlisted column sorting.
 - **Query Parameters:**
+  - `search`: `string | null` (Case-insensitive substring search matching `filename` or `original_filename`).
+  - `status`: `string | null` (Filter by video status, e.g., `READY`, `PROCESSING`, `FAILED`, `UPLOADED`; passing `ALL` or omitting returns all).
+  - `sort_by`: `string` (Allowlisted sort field: `created_at`, `duration_seconds`, `filename`, `file_size_bytes`; default `created_at`).
+  - `order`: `string` (`asc` or `desc`; default `desc`).
+  - `page`: `int` (1-based page number, minimum 1; default 1).
   - `limit`: `int` (default 20, max 100).
-  - `offset`: `int` (default 0).
-  - `status`: `string | null` (e.g., `READY`, `PROCESSING`).
 - **Response Status:** `200 OK`.
-- **Response Schema:** Standard paginated envelope with `items: list[VideoSummary]`.
+- **Response Schema:** Standard paginated envelope with `items: list[VideoSummary]`, `total: int`, `limit: int`, `offset: int`.
 
 ### 5.3 `GET /api/v1/videos/{video_id}`
-- **Purpose:** Returns comprehensive technical stream metadata and pipeline status for a video.
+- **Purpose:** Returns comprehensive technical stream metadata, audio characteristics, SSD file verification, child entity counts, and pipeline status for a video.
 - **Response Status:** `200 OK`.
+- **Response Schema Additions (Phase 11):**
+  - `audio_sample_rate`: `int | null` (e.g., 44100, 48000 Hz).
+  - `audio_channels`: `int | null` (e.g., 1 for mono, 2 for stereo).
+  - `file_exists`: `bool` (Real-time SSD verification of raw video file existence).
+  - `processing_jobs_count`: `int` (Total associated background pipeline tasks).
+  - `clips_count`: `int` (Total clips cut or configured from this video).
+  - `transcripts_count`: `int` (Total transcript records).
+  - `highlights_count`: `int` (Total algorithmic highlight candidates detected).
 - **Errors:** `404 Not Found`.
 
 ### 5.4 `GET /api/v1/videos/{video_id}/stream`
@@ -299,9 +310,11 @@ Every non-2xx HTTP response adheres strictly to this format:
   - `Content-Type: video/mp4`
 
 ### 5.5 `DELETE /api/v1/videos/{video_id}`
-- **Purpose:** Deletes video metadata and intermediate files (`storage/audio/`, `storage/clips/`, `storage/transcripts/`).
-- **Query Parameter:** `delete_exports: bool = false` (Defaults to preserving rendered MP4s in `storage/exports/` per ADR-008).
-- **Response Status:** `204 No Content`.
+- **Purpose:** Deletes video metadata and triggers SQLite foreign key cascading deletion of child jobs, transcripts, transcript segments, highlights, and clips.
+- **Query Parameter:**
+  - `purge_files`: `bool = false` (When true, safely unlinks the raw ingested video file on SSD; defaults to false to preserve disk media. Rendered exports in `storage/exports/` are strictly preserved per ADR-008 unless separately purged).
+- **Response Status:** `200 OK` with JSON envelope: `{"success": true, "id": str, "file_unlinked": bool}`.
+- **Errors:** `404 Not Found`.
 
 ---
 
@@ -589,6 +602,13 @@ data: {"gpu_vram_used_mb":1120,"gpu_vram_free_mb":2976,"cpu_load":24.0}
 ### 10.6 `POST /api/v1/exports/{export_id}/cancel`
 - **Purpose:** Cancels an active NVENC render job and terminates the FFmpeg subprocess.
 - **Response Status:** `200 OK`.
+
+### 10.7 `DELETE /api/v1/exports/{export_id}`
+- **Purpose:** Deletes an export record from the database and optionally removes the rendered MP4 file from disk.
+- **Query Parameter:**
+  - `delete_file`: `bool = false` (When true, unlinks the rendered MP4 file in `storage/exports/`).
+- **Response Status:** `200 OK` with JSON envelope: `{"success": true, "id": str, "file_unlinked": bool}`.
+- **Errors:** `404 Not Found`.
 
 ---
 

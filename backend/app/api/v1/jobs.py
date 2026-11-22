@@ -1,7 +1,7 @@
-from datetime import datetime
-from typing import Any, Dict, List, Optional
+from datetime import datetime, timezone
+from typing import Any, Dict, Optional
 from fastapi import APIRouter, Depends, Query, status
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.app.api.dependencies import get_database
@@ -17,31 +17,58 @@ router = APIRouter(prefix="/jobs", tags=["Processing Jobs"])
     response_model=PaginatedResponse[Dict[str, Any]],
     status_code=status.HTTP_200_OK,
     summary="List Processing Jobs",
-    description="Returns a paginated list of background processing jobs with optional filtering."
+    description="Returns a paginated list of background processing jobs with optional filtering and search."
 )
 async def list_jobs(
     video_id: Optional[str] = Query(None, description="Filter jobs by video UUID"),
     job_status: Optional[str] = Query(None, alias="status", description="Filter jobs by status"),
+    job_type: Optional[str] = Query(None, description="Filter jobs by job type"),
+    search: Optional[str] = Query(None, description="Search jobs by current step, error message, or job type"),
+    sort_by: str = Query("created_at", description="Field to sort by: created_at, updated_at, progress_percent, status"),
+    order: str = Query("desc", description="Sort order: asc or desc"),
     page: int = Query(1, ge=1, description="Page number"),
     limit: int = Query(20, ge=1, le=100, description="Items per page"),
     db: AsyncSession = Depends(get_database)
 ):
-    """Lists processing jobs from the database."""
+    """Lists processing jobs from the database with filtering and search."""
     offset = (page - 1) * limit
-    base_filter = []
-    if video_id:
-        base_filter.append(ProcessingJob.video_id == video_id)
-    if job_status:
-        base_filter.append(ProcessingJob.status == job_status)
+    filters = []
 
-    count_stmt = select(func.count(ProcessingJob.id)).where(*base_filter)
+    if video_id:
+        filters.append(ProcessingJob.video_id == video_id)
+    if job_status and job_status.strip() and job_status.upper() != "ALL":
+        filters.append(ProcessingJob.status == job_status.strip().upper())
+    if job_type and job_type.strip() and job_type.upper() != "ALL":
+        filters.append(ProcessingJob.job_type == job_type.strip().upper())
+    if search:
+        search_term = f"%{search.strip()}%"
+        filters.append(
+            or_(
+                ProcessingJob.current_step.ilike(search_term),
+                ProcessingJob.error_message.ilike(search_term),
+                ProcessingJob.job_type.ilike(search_term),
+                ProcessingJob.id.ilike(search_term),
+            )
+        )
+
+    count_stmt = select(func.count(ProcessingJob.id)).where(*filters)
     total_result = await db.execute(count_stmt)
     total = total_result.scalar_one()
 
+    sort_mapping = {
+        "created_at": ProcessingJob.created_at,
+        "updated_at": ProcessingJob.updated_at,
+        "progress_percent": ProcessingJob.progress_percent,
+        "status": ProcessingJob.status,
+        "job_type": ProcessingJob.job_type,
+    }
+    sort_column = sort_mapping.get(sort_by, ProcessingJob.created_at)
+    order_clause = sort_column.asc() if order.lower() == "asc" else sort_column.desc()
+
     stmt = (
         select(ProcessingJob)
-        .where(*base_filter)
-        .order_by(ProcessingJob.created_at.desc())
+        .where(*filters)
+        .order_by(order_clause)
         .offset(offset)
         .limit(limit)
     )
@@ -126,7 +153,7 @@ async def cancel_job(
 
     job.status = "CANCELLED"
     job.current_step = "Cancelled by user"
-    job.completed_at = datetime.utcnow()
+    job.completed_at = datetime.now(timezone.utc)
     await db.commit()
     await db.refresh(job)
 

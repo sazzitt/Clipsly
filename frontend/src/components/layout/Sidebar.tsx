@@ -9,6 +9,7 @@ import {
   Settings,
   HardDrive,
   Scissors,
+  Activity,
   X,
 } from "lucide-react";
 import { cn } from "../../lib/utils";
@@ -28,6 +29,7 @@ interface NavItem {
 const navItems: NavItem[] = [
   { label: "Dashboard", to: "/", icon: LayoutDashboard },
   { label: "Video Library", to: "/videos", icon: Video },
+  { label: "Processing Jobs", to: "/jobs", icon: Activity },
   { label: "Upload Video", to: "/upload", icon: Upload },
   { label: "Clips Library", to: "/clips", icon: Film },
   { label: "Export Queue", to: "/exports", icon: Download },

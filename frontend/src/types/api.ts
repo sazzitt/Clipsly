@@ -45,13 +45,14 @@ export interface SystemHardwareTelemetry {
   ssd_free_space_gb: number;
 }
 
-export type VideoStatus = "uploaded" | "processing" | "ready" | "failed";
+export type VideoStatus = "uploaded" | "processing" | "ready" | "failed" | string;
 
 export interface Video {
   id: string;
   filename: string;
-  original_name: string;
-  file_path: string;
+  original_filename: string;
+  original_name?: string;
+  file_path?: string;
   file_size_bytes: number;
   duration_seconds: number;
   width: number;
@@ -60,9 +61,17 @@ export interface Video {
   fps: number;
   video_codec: string;
   audio_codec: string;
+  audio_sample_rate?: number;
+  audio_channels?: number;
   status: VideoStatus;
+  error_message?: string | null;
+  file_exists?: boolean;
+  processing_jobs_count?: number;
+  clips_count?: number;
+  transcripts_count?: number;
+  highlights_count?: number;
   created_at: string;
-  updated_at: string;
+  updated_at?: string | null;
 }
 
 export type JobStatus =
@@ -72,27 +81,38 @@ export type JobStatus =
   | "scoring"
   | "completed"
   | "failed"
-  | "cancelled";
+  | "cancelled"
+  | string;
 
 export interface ProcessingJob {
   id: string;
   video_id: string;
+  job_type: string;
   status: JobStatus;
-  current_stage: string;
+  current_step: string;
+  current_stage?: string;
   progress_percent: number;
   error_message?: string | null;
-  created_at: string;
+  process_pid?: number | null;
   started_at?: string | null;
   completed_at?: string | null;
+  created_at: string;
+  updated_at?: string | null;
 }
 
 export interface Transcript {
   id: string;
   video_id: string;
   language: string;
-  duration_seconds: number;
+  duration_seconds?: number;
   model_name: string;
+  compute_type?: string;
+  full_text?: string;
+  word_count?: number;
+  processing_time_seconds?: number;
+  is_active?: boolean;
   created_at: string;
+  updated_at?: string | null;
 }
 
 export interface WordTimestamp {
@@ -115,52 +135,82 @@ export interface TranscriptSegment {
 export interface Highlight {
   id: string;
   video_id: string;
-  start_time: number;
-  end_time: number;
-  duration_seconds: number;
-  rank: number;
+  transcript_id?: string;
+  start_ms?: number;
+  end_ms?: number;
+  start_time?: number;
+  end_time?: number;
+  duration_ms?: number;
+  duration_seconds?: number;
+  hook_sentence?: string;
+  summary?: string;
+  hook_score?: number;
+  flow_score?: number;
+  coherence_score?: number;
+  density_score?: number;
+  energy_score?: number;
+  sentiment_score?: number;
   composite_score: number;
-  hook_score: number;
-  flow_score: number;
-  density_score: number;
-  energy_score: number;
+  category?: string;
+  detection_method?: string;
+  status: string;
+  rank?: number;
   explanation?: string | null;
+  created_at?: string | null;
 }
 
-export type AspectRatio = "9:16" | "1:1" | "16:9";
-export type CropMode = "blur_fill" | "center_crop";
-export type ClipStatus = "draft" | "rendered" | "exported";
+export type AspectRatio = "9:16" | "1:1" | "16:9" | string;
+export type CropMode = "blur_fill" | "center_crop" | string;
+export type ClipStatus = "draft" | "rendered" | "exported" | string;
 
 export interface Clip {
   id: string;
   video_id: string;
+  video_filename?: string | null;
   highlight_id?: string | null;
   title: string;
-  start_time: number;
-  end_time: number;
-  duration_seconds: number;
-  aspect_ratio: AspectRatio;
-  crop_mode: CropMode;
-  subtitle_style?: string;
+  start_ms: number;
+  end_ms: number;
+  duration_ms: number;
+  aspect_ratio_mode: string;
+  subtitle_enabled: boolean;
+  subtitle_style_preset: string;
+  subtitle_font_family?: string;
+  subtitle_font_size?: number;
+  subtitle_primary_color?: string;
+  subtitle_highlight_color?: string;
+  subtitle_outline_color?: string;
+  subtitle_outline_width?: number;
+  subtitle_vertical_position?: string;
+  custom_subtitle_text?: string | null;
   status: ClipStatus;
   file_path?: string | null;
   created_at: string;
-  updated_at: string;
+  updated_at?: string | null;
 }
 
-export type ExportStatus = "pending" | "rendering" | "completed" | "failed";
+export type ExportStatus = "pending" | "rendering" | "completed" | "failed" | string;
 
 export interface ExportJob {
   id: string;
   clip_id: string;
+  clip_title?: string | null;
+  video_id?: string;
+  output_filename: string;
+  output_path?: string | null;
+  resolution: string;
+  fps: number;
+  encoder: string;
+  render_time_seconds?: number | null;
+  file_size_bytes?: number | null;
   status: ExportStatus;
   progress_percent: number;
-  output_file_path?: string | null;
-  encoder_used?: string;
-  render_duration_seconds?: number | null;
   error_message?: string | null;
-  created_at: string;
+  process_pid?: number | null;
+  file_exists?: boolean;
+  started_at?: string | null;
   completed_at?: string | null;
+  created_at: string;
 }
 
 export interface DashboardCounts {

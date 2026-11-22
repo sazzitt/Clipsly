@@ -100,6 +100,58 @@ async function request<T>(endpoint: string, options: RequestOptions = {}): Promi
   }
 }
 
+export interface VideoListParams {
+  page?: number;
+  limit?: number;
+  search?: string;
+  status?: string;
+  sort_by?: string;
+  order?: "asc" | "desc";
+}
+
+export interface JobListParams {
+  page?: number;
+  limit?: number;
+  video_id?: string;
+  status?: string;
+  job_type?: string;
+  search?: string;
+  sort_by?: string;
+  order?: "asc" | "desc";
+}
+
+export interface ClipListParams {
+  page?: number;
+  limit?: number;
+  video_id?: string;
+  status?: string;
+  search?: string;
+  sort_by?: string;
+  order?: "asc" | "desc";
+}
+
+export interface ExportListParams {
+  page?: number;
+  limit?: number;
+  clip_id?: string;
+  video_id?: string;
+  status?: string;
+  search?: string;
+  sort_by?: string;
+  order?: "asc" | "desc";
+}
+
+function buildQueryString(params: Record<string, unknown> = {}): string {
+  const searchParams = new URLSearchParams();
+  for (const [key, value] of Object.entries(params)) {
+    if (value !== undefined && value !== null && value !== "") {
+      searchParams.append(key, String(value));
+    }
+  }
+  const str = searchParams.toString();
+  return str ? `?${str}` : "";
+}
+
 // Scoped API Methods
 export const api = {
   system: {
@@ -114,19 +166,36 @@ export const api = {
   },
 
   videos: {
-    list: (page = 1, limit = 20, signal?: AbortSignal) =>
-      request<PaginatedResponse<Video>>(`/videos?page=${page}&limit=${limit}`, { method: "GET", signal }),
+    list: (params?: VideoListParams | number, limit = 20, signal?: AbortSignal) => {
+      let query = "";
+      if (typeof params === "number") {
+        query = `?page=${params}&limit=${limit}`;
+      } else if (params) {
+        query = buildQueryString(params as unknown as Record<string, unknown>);
+      }
+      return request<PaginatedResponse<Video>>(`/videos${query}`, { method: "GET", signal });
+    },
     get: (id: string, signal?: AbortSignal) =>
       request<Video>(`/videos/${id}`, { method: "GET", signal }),
-    delete: (id: string, signal?: AbortSignal) =>
-      request<{ success: boolean; id: string }>(`/videos/${id}`, { method: "DELETE", signal }),
+    delete: (id: string, purgeFiles = false, signal?: AbortSignal) =>
+      request<{ success: boolean; id: string; file_unlinked?: boolean }>(
+        `/videos/${id}?purge_files=${purgeFiles}`,
+        { method: "DELETE", signal }
+      ),
   },
 
   jobs: {
+    list: (params?: JobListParams, signal?: AbortSignal) => {
+      const query = buildQueryString(params as unknown as Record<string, unknown>);
+      return request<PaginatedResponse<ProcessingJob>>(`/jobs${query}`, { method: "GET", signal });
+    },
     get: (jobId: string, signal?: AbortSignal) =>
       request<ProcessingJob>(`/jobs/${jobId}`, { method: "GET", signal }),
     cancel: (jobId: string, signal?: AbortSignal) =>
-      request<{ success: boolean; message: string }>(`/jobs/${jobId}/cancel`, { method: "POST", signal }),
+      request<{ id: string; status: string; current_step: string }>(
+        `/jobs/${jobId}/cancel`,
+        { method: "POST", signal }
+      ),
   },
 
   transcripts: {
@@ -140,19 +209,33 @@ export const api = {
   },
 
   clips: {
-    list: (videoId?: string, signal?: AbortSignal) => {
-      const query = videoId ? `?video_id=${videoId}` : "";
-      return request<Clip[]>(`/clips${query}`, { method: "GET", signal });
+    list: (params?: ClipListParams | string, signal?: AbortSignal) => {
+      let query = "";
+      if (typeof params === "string") {
+        query = `?video_id=${params}`;
+      } else if (params) {
+        query = buildQueryString(params as unknown as Record<string, unknown>);
+      }
+      return request<PaginatedResponse<Clip>>(`/clips${query}`, { method: "GET", signal });
     },
     get: (clipId: string, signal?: AbortSignal) =>
       request<Clip>(`/clips/${clipId}`, { method: "GET", signal }),
+    delete: (clipId: string, signal?: AbortSignal) =>
+      request<{ success: boolean; id: string }>(`/clips/${clipId}`, { method: "DELETE", signal }),
   },
 
   exports: {
-    list: (signal?: AbortSignal) =>
-      request<ExportJob[]>("/exports", { method: "GET", signal }),
+    list: (params?: ExportListParams, signal?: AbortSignal) => {
+      const query = buildQueryString(params as unknown as Record<string, unknown>);
+      return request<PaginatedResponse<ExportJob>>(`/exports${query}`, { method: "GET", signal });
+    },
     get: (exportId: string, signal?: AbortSignal) =>
       request<ExportJob>(`/exports/${exportId}`, { method: "GET", signal }),
+    delete: (exportId: string, deleteFile = false, signal?: AbortSignal) =>
+      request<{ success: boolean; id: string; file_unlinked?: boolean }>(
+        `/exports/${exportId}?delete_file=${deleteFile}`,
+        { method: "DELETE", signal }
+      ),
   },
 };
 

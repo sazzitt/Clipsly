@@ -589,11 +589,15 @@ The backend implements an automated, non-blocking backup utility leveraging the 
 
 ## 11. Current Status & Next Steps
 
-- **Status:** **PHASE 08 COMPLETED & VERIFIED.**
+- **Status:** **PHASE 11 COMPLETED & VERIFIED.**
 - **Implementation Highlights:**
   - Complete declarative ORM definitions for all 8 entities in `backend/app/models/`.
-  - Full relationship mapping with cascading deletion rules on parent models.
+  - Full relationship mapping with cascading deletion rules on parent models (`Video`, `Clip`).
   - SQLite WAL mode and foreign key constraints enforced on every connection checkout.
-  - Initial Alembic migration `c0221816e0e3_create_initial_schema.py` applied to `data/clipsly.db`.
-  - Comprehensive model lifecycle, constraint, and cascade deletion tests passing in `backend/tests/test_models.py`.
-- **Immediate Next Step:** Proceed to **Phase 09 (Media Pipeline & Chunked Ingestion Architecture)** upon user approval.
+  - Phase 11 Project Management System:
+    - `Video` deletion cascades SQLite foreign keys for child `processing_jobs`, `transcripts`, `highlights`, `clips`, and `export_jobs`.
+    - Implemented `purge_files=true|false` parameter on `DELETE /api/v1/videos/{video_id}` adhering strictly to ADR-008: source files are safely unlinked only when requested, while rendered MP4 exports in `storage/exports/` are preserved unless explicitly purged by the user.
+    - Implemented `delete_file=true|false` parameter on `DELETE /api/v1/exports/{export_id}` to optionally delete exported MP4 media files from SSD alongside database record cleanup.
+    - Added eager joining and pre-aggregation in management routes to prevent `MissingGreenlet` exceptions during async SQLite querying.
+  - Comprehensive model lifecycle, constraint, and cascade deletion tests passing in `backend/tests/test_models.py` and `backend/tests/test_management_api.py`.
+- **Immediate Next Step:** Proceed to **Phase 12 (Local Video Upload & Ingestion Pipeline)** upon user approval.

@@ -6,6 +6,7 @@ import { DashboardPage } from "../features/dashboard/DashboardPage";
 import { VideoLibraryPage } from "../features/videos/VideoLibraryPage";
 import { UploadPage } from "../features/videos/UploadPage";
 import { VideoDetailPage } from "../features/videos/VideoDetailPage";
+import { JobsPage } from "../features/jobs/JobsPage";
 import { TranscriptViewerPage } from "../features/transcripts/TranscriptViewerPage";
 import { HighlightsPage } from "../features/highlights/HighlightsPage";
 import { ClipsLibraryPage } from "../features/clips/ClipsLibraryPage";
@@ -44,6 +45,10 @@ export const router = createBrowserRouter([
       {
         path: "video/:id/highlights",
         element: <HighlightsPage />,
+      },
+      {
+        path: "jobs",
+        element: <JobsPage />,
       },
       {
         path: "clips",
