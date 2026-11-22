@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React from "react";
 import { 
   Activity, 
   Database, 
@@ -10,38 +10,10 @@ import {
   AlertTriangle, 
   XCircle 
 } from "lucide-react";
-import { fetchSystemHealth } from "../services/api";
-import { SystemHealthResponse } from "../types/system";
+import { useBackendHealth } from "../hooks/useBackendHealth";
 
 export const HealthStatusCard: React.FC = () => {
-  const [health, setHealth] = useState<SystemHealthResponse | null>(null);
-  const [loading, setLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null);
-  const [lastChecked, setLastChecked] = useState<Date | null>(null);
-
-  const checkHealth = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const data = await fetchSystemHealth();
-      setHealth(data);
-      setLastChecked(new Date());
-    } catch (err: unknown) {
-      if (err instanceof Error) {
-        setError(err.message);
-      } else {
-        setError("An unexpected error occurred while contacting the backend.");
-      }
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    checkHealth();
-  }, [checkHealth]);
-
-  const isHealthy = health?.status === "healthy" && !error;
+  const { health, isConnected, isDegraded, loading, error, lastChecked, refresh } = useBackendHealth();
 
   return (
     <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
@@ -62,33 +34,36 @@ export const HealthStatusCard: React.FC = () => {
 
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-2">
-            {loading ? (
+            {loading && !health ? (
               <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-amber-500/10 text-amber-400 border border-amber-500/20">
                 <RefreshCw className="h-3 w-3 animate-spin" />
                 Querying...
               </span>
-            ) : isHealthy ? (
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                <CheckCircle2 className="h-3.5 w-3.5" />
-                Backend Healthy
-              </span>
-            ) : error ? (
+            ) : isConnected ? (
+              isDegraded ? (
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                  <AlertTriangle className="h-3.5 w-3.5" />
+                  Degraded
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                  <CheckCircle2 className="h-3.5 w-3.5" />
+                  Backend Healthy
+                </span>
+              )
+            ) : (
               <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-red-500/10 text-red-400 border border-red-500/20">
                 <XCircle className="h-3.5 w-3.5" />
                 Backend Offline
-              </span>
-            ) : (
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-amber-500/10 text-amber-400 border border-amber-500/20">
-                <AlertTriangle className="h-3.5 w-3.5" />
-                Degraded
               </span>
             )}
           </div>
 
           <button
-            onClick={checkHealth}
+            onClick={() => refresh()}
             disabled={loading}
             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-secondary hover:bg-secondary/80 text-foreground border border-border transition-colors disabled:opacity-50"
+            aria-label="Refresh telemetry diagnostics"
           >
             <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />
             Refresh
@@ -96,7 +71,7 @@ export const HealthStatusCard: React.FC = () => {
         </div>
       </div>
 
-      {error ? (
+      {error && !health ? (
         <div className="mt-6 p-4 rounded-lg bg-red-950/30 border border-red-800/40 text-red-300 text-xs flex items-start gap-3">
           <XCircle className="h-5 w-5 text-red-400 shrink-0 mt-0.5" />
           <div className="space-y-1">

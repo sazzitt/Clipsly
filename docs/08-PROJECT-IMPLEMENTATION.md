@@ -80,27 +80,33 @@ clipsly/
 │   │   └── main.py              # Application entrypoint & lifespan lifecycle
 │   ├── pyproject.toml           # uv / Poetry dependency manifest
 │   └── tests/                   # Pytest automated test suite
-├── frontend/                    # React 18 + Vite + TypeScript
+├── frontend/                    # React 18 + Vite 6 + TypeScript (Strict)
 │   ├── src/
-│   │   ├── assets/              # Bundled fonts, icons, placeholders
-│   │   ├── components/          # Reusable UI component library (shadcn/ui)
-│   │   │   ├── ui/              # Button, Dialog, Slider, Badge, Toast, etc.
-│   │   │   ├── layout/          # Navbar, Sidebar, DashboardShell
-│   │   │   ├── media/           # VideoPlayer, WaveformTrack, TrimSlider
-│   │   │   └── studio/          # SubtitleEditor, StylePicker, AspectRatioToggle
-│   │   ├── hooks/               # Custom React hooks (useSSE, useVideoSync)
-│   │   ├── pages/               # Top-level view routes
-│   │   │   ├── DashboardPage.tsx
-│   │   │   ├── VideoReviewPage.tsx
-│   │   │   ├── StudioPage.tsx   # Interactive Studio Preview (ADR-004)
-│   │   │   └── ExportQueuePage.tsx
-│   │   ├── services/            # API client layer (Axios / Fetch)
-│   │   ├── types/               # TypeScript interfaces matching Pydantic schemas
-│   │   ├── App.tsx
-│   │   └── main.tsx
-│   ├── tailwind.config.js       # Tailwind CSS configuration & tokens
-│   ├── package.json
-│   └── tsconfig.json
+│   │   ├── app/                 # Root application setup & router
+│   │   │   ├── App.tsx          # Root provider tree & RouterProvider
+│   │   │   ├── router.tsx       # React Router 6.28 Data Router with 11 routes
+│   │   │   └── providers.tsx    # BackendHealthProvider & ToastProvider
+│   │   ├── components/          # Reusable component library
+│   │   │   ├── layout/          # AppLayout, Sidebar, Header, PageContainer
+│   │   │   ├── common/          # EmptyState, ErrorState, LoadingState, OfflineBanner, NotFoundPage
+│   │   │   ├── providers/       # BackendHealthProvider
+│   │   │   └── ui/              # Button, Card, Badge, Input, Dialog, Dropdown, Progress, Tabs, Tooltip, Skeleton, Toast
+│   │   ├── context/             # React contexts (BackendHealthContext, ToastContext)
+│   │   ├── features/            # Feature-scoped modular pages
+│   │   │   ├── dashboard/       # DashboardPage
+│   │   │   ├── videos/          # VideoLibraryPage, UploadPage, VideoDetailPage
+│   │   │   ├── transcripts/     # TranscriptViewerPage
+│   │   │   ├── highlights/      # HighlightsPage
+│   │   │   ├── clips/           # ClipsLibraryPage, StudioPage
+│   │   │   ├── exports/         # ExportsPage
+│   │   │   └── settings/        # SettingsPage, StoragePage
+│   │   ├── hooks/               # Custom hooks (useBackendHealth, useToast)
+│   │   ├── services/            # api.ts (Centralized typed API client)
+│   │   ├── types/               # api.ts (Strict TypeScript contracts matching OpenAPI)
+│   │   └── test/                # Vitest & React Testing Library test suites
+│   ├── tailwind.config.js       # Tailwind CSS configuration & dark workstation tokens
+│   ├── package.json             # React 18, React Router, Vitest, Lucide
+│   └── tsconfig.json            # Strict TypeScript configuration
 └── storage/                     # Local SSD binary asset storage (gitignored)
 ```
 
@@ -112,11 +118,12 @@ clipsly/
 2. **Asynchronous I/O:** All FastAPI route handlers, database queries, and subprocess invocations must use Python `asyncio`.
 3. **Subprocess Isolation:** FFmpeg, FFprobe, and Faster-Whisper workers are isolated into managed child processes to protect the main web server loop (ADR-006).
 4. **No External CDN Dependencies:** All fonts, icons, and styling assets must be bundled locally.
+5. **Centralized Backend Connection:** Global `BackendHealthProvider` single-instance polling to eliminate duplicate interval requests.
 
 ---
 
 ## 4. Current Status & Next Steps
 
-- **Status:** ARCHITECTURALLY FINALIZED.
-- **Dependencies:** UI/UX & Processing Workflow Specifications (Phase 05).
-- **Execution Target:** Media Ingestion Implementation begins in **Phase 06**.
+- **Status:** PHASE 07 COMPLETED & VERIFIED.
+- **Frontend Architecture:** Clean modular directories, 11 routes, 12 UI primitives, typed API client, and 20 passing unit tests.
+- **Execution Target:** Local Video Ingestion Pipeline begins in **Phase 08**.

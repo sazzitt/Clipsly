@@ -1,12 +1,6 @@
-export interface SystemHealthResponse {
-  status: "healthy" | "degraded" | "unhealthy";
-  version: string;
-  database_connected: boolean;
-  cuda_available: boolean;
-  nvenc_available: boolean;
-  active_jobs_count: number;
-  uptime_seconds: number;
-}
+import { SystemHealth } from "./api";
+
+export type SystemHealthResponse = SystemHealth;
 
 export interface RootApiResponse {
   application: string;
@@ -14,3 +8,5 @@ export interface RootApiResponse {
   docs: string;
   health: string;
 }
+
+export * from "./api";

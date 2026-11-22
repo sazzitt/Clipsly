@@ -86,6 +86,21 @@ Due to the complex interactions between Windows 11 host environments, NVIDIA GPU
   2. Add `/// <reference types="vite/client" />` inside `vite-env.d.ts`.
   3. Ensure `tsconfig.app.json` includes `src` in its `"include"` array.
 
+### 2.10 React Refresh Only-Export-Components Lint Warnings
+- **Symptom:** `npm run lint` warns `Fast refresh only works when a file only exports components`.
+- **Root Cause:** Exporting both a React component and a non-component object or function (such as `cva()` variant objects or `createContext()` instances) in the same `.tsx` file violates fast refresh rules.
+- **Resolution Playbook:**
+  1. Extract CVA variants to dedicated TypeScript modules (e.g., `button-variants.ts`, `badge-variants.ts`).
+  2. Extract React Context instances into `src/context/` (e.g., `ToastContext.ts`, `BackendHealthContext.ts`).
+  3. Keep `.tsx` files strictly focused on exporting UI components or hooks.
+
+### 2.11 React Router 6.28 Data Router Future Flag Types
+- **Symptom:** TypeScript throws `TS2353: 'v7_startTransition' does not exist in type 'Partial<Omit<FutureConfig, "v7_prependBasename">>'`.
+- **Root Cause:** In React Router 6.28+, `v7_startTransition` belongs to `<RouterProvider future={{ v7_startTransition: true }} />`, whereas `v7_relativeSplatPath` is passed to `createBrowserRouter(routes, { future: { ... } })`.
+- **Resolution Playbook:**
+  1. Configure `v7_relativeSplatPath: true` in `createBrowserRouter()`.
+  2. Configure `v7_startTransition: true` on `<RouterProvider router={router} />`.
+
 ---
 
 ## 3. Automated Diagnostics Scripts (Planned for Phase 18)

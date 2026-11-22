@@ -53,19 +53,18 @@ Every feature follows a disciplined 5-stage lifecycle:
 2. Add corresponding FFmpeg filtergraph formula in `backend/app/services/media/reframer.py`.
 3. Update aspect ratio toggle in `frontend/src/components/studio/AspectRatioToggle.tsx`.
 
+### 3.4 Adding a New Frontend Feature Route
+1. Create a feature directory inside `frontend/src/features/<feature>/`.
+2. Implement the route-level page component using `<PageContainer>` and design system primitives from `components/ui/`.
+3. Add typed endpoint methods in `frontend/src/services/api.ts` adhering to `types/api.ts`.
+4. Register the route in `frontend/src/app/router.tsx` and add navigation entries to `Sidebar.tsx`.
+5. Add unit and route tests under `frontend/src/test/`.
+6. Run `npm run lint`, `npm run build`, and `npm test` before committing.
+
 ---
 
-## 4. Planned Sections for Phase 06–16 Specification
+## 4. Operational Status & Next Steps
 
-As feature development progresses, this document will be updated with:
-- Standardized Git branch naming conventions (`feat/`, `fix/`, `perf/`).
-- Subprocess error handling templates.
-- End-to-end integration checklist before PR approval.
-
----
-
-## 5. Current Status & Next Steps
-
-- **Status:** PLANNED.
-- **Immediate Dependency:** Scaffolding complete in Phase 04 and Phase 05.
-- **Execution Target:** Phase 06 through Phase 16.
+- **Status:** ACTIVE (Phase 07 Complete).
+- **Current Baseline:** Frontend architecture, 11 routes, design system primitives, and Vitest suite operational.
+- **Next Phase:** Phase 08 (Local Video Ingestion & FFprobe Extraction).
