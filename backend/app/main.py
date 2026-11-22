@@ -8,7 +8,13 @@ from fastapi.responses import JSONResponse
 from backend.app.api.router import api_router
 from backend.app.core.config import settings
 from backend.app.core.database import check_db_connection, engine
+from backend.app.core.exception_handlers import register_exception_handlers
 from backend.app.core.logging import logger, setup_logging
+from backend.app.middleware import (
+    CorrelationIdMiddleware,
+    LocalhostSecurityMiddleware,
+    RequestTimingMiddleware,
+)
 
 
 @asynccontextmanager
@@ -44,7 +50,12 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# CORS configuration strictly restricted to local Vite development server
+# Register custom exception handlers (standard error envelopes matching docs/05-API.md)
+register_exception_handlers(app)
+
+# Middlewares are wrapped so that the last added executes first on incoming requests:
+# Incoming: LocalhostSecurity -> CorrelationId -> RequestTiming -> CORS -> Route
+# Outgoing: Route -> CORS -> RequestTiming (X-Process-Time-Ms) -> CorrelationId (X-Request-ID) -> LocalhostSecurity
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.CORS_ORIGINS,
@@ -52,6 +63,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+app.add_middleware(RequestTimingMiddleware)
+app.add_middleware(CorrelationIdMiddleware)
+app.add_middleware(LocalhostSecurityMiddleware)
 
 # Mount all API v1 routes
 app.include_router(api_router)

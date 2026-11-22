@@ -124,6 +124,15 @@ clipsly/
 
 ## 4. Current Status & Next Steps
 
-- **Status:** PHASE 07 COMPLETED & VERIFIED.
-- **Frontend Architecture:** Clean modular directories, 11 routes, 12 UI primitives, typed API client, and 20 passing unit tests.
-- **Execution Target:** Local Video Ingestion Pipeline begins in **Phase 08**.
+- **Status:** PHASE 08 COMPLETED & VERIFIED.
+- **Frontend Architecture (Phase 07):** Clean modular directories, 11 routes, 12 UI primitives, typed API client, and 20 passing unit tests.
+- **Backend Architecture (Phase 08):**
+  - **Configuration Management:** Centralized Pydantic Settings v2 (`backend/app/core/config.py`) and `.env.example`.
+  - **Structured Logging:** Rotating file handler (10MB, 5 backups) to `logs/clipsly_app.log` and formatted console output.
+  - **Exception & Error Handling:** Centralized exception hierarchy (`backend/app/core/exceptions.py`) and standard JSON error envelope (`error_code`, `detail`, `error: {code, message, details}`).
+  - **Middleware Infrastructure:** Correlation ID tracking (`X-Request-ID`), request timing (`X-Process-Time-Ms`), and loopback security (`LocalhostSecurityMiddleware`).
+  - **Relational Data Layer:** All 8 SQLAlchemy 2.0 Async ORM models (`Video`, `ProcessingJob`, `Transcript`, `TranscriptSegment`, `Highlight`, `Clip`, `ExportJob`, `ApplicationSetting`) with relationships, cascade deletes, and check constraints.
+  - **Database Migrations:** Alembic revision `c0221816e0e3_create_initial_schema.py` applied to `data/clipsly.db` with WAL mode and foreign keys enabled.
+  - **API v1 Routers:** Mounted under `/api/v1` for `/system`, `/videos`, `/jobs`, `/transcripts`, `/highlights`, `/clips`, `/exports`.
+  - **Automated Verification:** 24 backend pytest tests passing in 1.21s; 20 frontend Vitest tests passing; ESLint clean; TypeScript production build clean.
+- **Execution Target:** Media Ingestion & Chunked Upload Pipeline activates in **Phase 09**.

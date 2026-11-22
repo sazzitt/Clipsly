@@ -81,6 +81,9 @@ python -m venv .venv
 
 # Install backend dependencies
 pip install -r backend/requirements.txt
+
+# Apply latest database schema migrations
+alembic upgrade head
 ```
 
 ### Step 2: Frontend Setup

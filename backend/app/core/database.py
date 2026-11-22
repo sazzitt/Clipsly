@@ -42,9 +42,7 @@ AsyncSessionLocal = async_sessionmaker(
 )
 
 
-class Base(DeclarativeBase):
-    """Base declarative class for all SQLAlchemy ORM models."""
-    pass
+from backend.app.models.base import Base
 
 
 async def get_db() -> AsyncGenerator[AsyncSession, None]:

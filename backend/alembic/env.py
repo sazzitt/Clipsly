@@ -10,7 +10,8 @@ sys.path.insert(0, str(project_root))
 sys.path.insert(0, str(backend_dir))
 
 from backend.app.core.config import settings
-from backend.app.core.database import Base
+from backend.app.models import Base
+import backend.app.models  # Ensure all model tables are loaded into Base.metadata
 from alembic import context
 from sqlalchemy.ext.asyncio import create_async_engine
 from sqlalchemy import pool

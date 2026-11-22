@@ -101,6 +101,26 @@ Due to the complex interactions between Windows 11 host environments, NVIDIA GPU
   1. Configure `v7_relativeSplatPath: true` in `createBrowserRouter()`.
   2. Configure `v7_startTransition: true` on `<RouterProvider router={router} />`.
 
+### 2.12 Pydantic v2 Schema Generation with Built-in `any` vs `typing.Any`
+- **Symptom:** `pydantic.errors.PydanticSchemaGenerationError: Unable to generate pydantic-core schema for <built-in function any>`.
+- **Root Cause:** Accidentally using lowercase Python built-in `any` (a function) instead of `typing.Any` in Pydantic schema type annotations (`Optional[any]` vs `Optional[Any]`).
+- **Resolution Playbook:**
+  1. Ensure `from typing import Any` is explicitly imported.
+  2. Use uppercase `Any` for all wildcard generic type annotations in Pydantic models.
+
+### 2.13 SQLite NOT NULL Constraints on Audio Stream Properties
+- **Symptom:** `sqlalchemy.exc.IntegrityError: (sqlite3.IntegrityError) NOT NULL constraint failed: videos.audio_sample_rate`.
+- **Root Cause:** The `Video` model strictly enforces `audio_sample_rate` and `audio_channels` per `docs/04-DATABASE.md`. When constructing test video fixtures or mocking records, omitting these technical stream fields causes an immediate constraint violation.
+- **Resolution Playbook:**
+  1. Always provide valid audio properties (`audio_sample_rate=48000`, `audio_channels=2`) when instantiating `Video` instances.
+  2. During video upload ingestion (Phase 09), verify that `ffprobe` extracts these fields before committing the parent record.
+
+### 2.14 Starlette `HTTP_422_UNPROCESSABLE_ENTITY` Deprecation Warning
+- **Symptom:** `StarletteDeprecationWarning: 'HTTP_422_UNPROCESSABLE_ENTITY' is deprecated. Use 'HTTP_422_UNPROCESSABLE_CONTENT' instead.`
+- **Root Cause:** RFC 9110 renames HTTP status code 422 to "Unprocessable Content". Newer Starlette versions deprecate the older symbol.
+- **Resolution Playbook:**
+  1. Use `fastapi.status.HTTP_422_UNPROCESSABLE_CONTENT` (or raw status `422`) in all custom exception handlers.
+
 ---
 
 ## 3. Automated Diagnostics Scripts (Planned for Phase 18)
@@ -124,6 +144,6 @@ During Phase 18 through 20, this document will be expanded to include:
 
 ## 5. Current Status & Next Steps
 
-- **Status:** PLANNED.
-- **Immediate Dependency:** Job queue and watchdog implementation in Phase 17 and Phase 18.
-- **Execution Target:** Phase 18 through Phase 20.
+- **Status:** ACTIVE & EXPANDED (Phase 06, 07, 08 playbooks documented).
+- **Immediate Dependency:** Phase 09 media pipeline.
+- **Execution Target:** Phase 18 through Phase 20 for full automation.

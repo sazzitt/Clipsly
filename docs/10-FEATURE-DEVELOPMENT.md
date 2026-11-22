@@ -61,10 +61,19 @@ Every feature follows a disciplined 5-stage lifecycle:
 5. Add unit and route tests under `frontend/src/test/`.
 6. Run `npm run lint`, `npm run build`, and `npm test` before committing.
 
+### 3.5 Adding a New API Endpoint or Database Entity
+1. **Adding an ORM Model:** Define model inheriting `Base` and `TimestampMixin` in `backend/app/models/`. Export in `backend/app/models/__init__.py`.
+2. **Generating Migrations:** Run `alembic revision --autogenerate -m "add_table_name"` and `alembic upgrade head`.
+3. **Defining Pydantic Schemas:** Create request/response schemas in `backend/app/schemas/`.
+4. **Creating Endpoint Handlers:** Implement router under `backend/app/api/v1/`. Use `get_database` dependency and standard error exceptions (`NotFoundError`, `ValidationError`, etc.).
+5. **Mounting Router:** Register router in `backend/app/api/router.py`.
+6. **Writing Tests:** Add integration tests in `backend/tests/` verifying success and standardized error envelopes.
+7. **Verifying Suite:** Run `.\.venv\Scripts\pytest.exe -v backend/tests` to confirm zero regressions.
+
 ---
 
 ## 4. Operational Status & Next Steps
 
-- **Status:** ACTIVE (Phase 07 Complete).
-- **Current Baseline:** Frontend architecture, 11 routes, design system primitives, and Vitest suite operational.
-- **Next Phase:** Phase 08 (Local Video Ingestion & FFprobe Extraction).
+- **Status:** ACTIVE (Phase 08 Complete).
+- **Current Baseline:** Backend API infrastructure, 8 ORM models, Alembic migrations, 3 middlewares, 24 pytest tests passing; Frontend architecture with 11 routes and 20 Vitest tests passing.
+- **Next Phase:** Phase 09 (Local Video Upload & Chunked Ingestion Pipeline).
