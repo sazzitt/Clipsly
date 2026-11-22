@@ -60,7 +60,6 @@ clipsly/
 │   │   │   ├── export.py
 │   │   │   ├── setting.py
 │   │   │   └── system.py
-│   │   │   └── system.py
 │   │   ├── services/            # Pure business logic domain services
 │   │   │   ├── media/           # FFmpeg / FFprobe wrapper services
 │   │   │   │   ├── inspector.py # Metadata extraction via ffprobe
@@ -119,5 +118,5 @@ clipsly/
 ## 4. Current Status & Next Steps
 
 - **Status:** ARCHITECTURALLY FINALIZED.
-- **Dependencies:** API Contracts (Phase 04).
-- **Execution Target:** Frontend scaffolding begins in **Phase 05**.
+- **Dependencies:** UI/UX & Processing Workflow Specifications (Phase 05).
+- **Execution Target:** Media Ingestion Implementation begins in **Phase 06**.

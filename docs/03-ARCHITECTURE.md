@@ -477,4 +477,4 @@ FastAPI utilizes the modern `lifespan` context manager to orchestrate clean star
 ## 13. Current Status & Next Steps
 
 - **Status:** **APPROVED & FINALIZED.**
-- **Immediate Next Step:** Proceed to **Phase 05 (Frontend Foundation & shadcn/ui Design System)** upon user approval.
+- **Immediate Next Step:** Proceed to **Phase 06 (Local Video Upload & Ingestion Pipeline)** upon user approval.
