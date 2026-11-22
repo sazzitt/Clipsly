@@ -46,7 +46,19 @@ export default {
         },
         card: {
           DEFAULT: "hsl(var(--card))",
+          hover: "hsl(var(--card-hover))",
           foreground: "hsl(var(--card-foreground))",
+        },
+        karaoke: {
+          amber: "hsl(var(--karaoke-amber))",
+          cyan: "hsl(var(--karaoke-cyan))",
+          mint: "hsl(var(--karaoke-mint))",
+          rose: "hsl(var(--karaoke-rose))",
+        },
+        telemetry: {
+          safe: "hsl(var(--telemetry-safe))",
+          warn: "hsl(var(--telemetry-warn))",
+          err: "hsl(var(--telemetry-err))",
         },
       },
       borderRadius: {

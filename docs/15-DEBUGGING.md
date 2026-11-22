@@ -121,6 +121,19 @@ Due to the complex interactions between Windows 11 host environments, NVIDIA GPU
 - **Resolution Playbook:**
   1. Use `fastapi.status.HTTP_422_UNPROCESSABLE_CONTENT` (or raw status `422`) in all custom exception handlers.
 
+### 2.15 Vite Fast Refresh Component Export Boundary Warning
+- **Symptom:** ESLint warning: `Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components (react-refresh/only-export-components)`.
+- **Root Cause:** Exporting both CVA variant helper functions (`cardVariants`) and React components (`Card`, `CardHeader`) from the same `.tsx` file breaks Vite HMR fast refresh boundaries.
+- **Resolution Playbook:**
+  1. Separate CVA variants into a dedicated `*-variants.ts` file (e.g. `card-variants.ts`, `button-variants.ts`, `badge-variants.ts`).
+  2. Re-export variants from the centralized `ui/index.ts`.
+
+### 2.16 TypeScript ESLint `no-empty-object-type` on Props Interfaces
+- **Symptom:** ESLint error: `An interface declaring no members is equivalent to its supertype (@typescript-eslint/no-empty-object-type)`.
+- **Root Cause:** Declaring an empty interface extending HTMLAttributes without additional members (e.g., `export interface KbdProps extends React.HTMLAttributes<HTMLElement> {}`).
+- **Resolution Playbook:**
+  1. Declare as a type alias instead: `export type KbdProps = React.HTMLAttributes<HTMLElement>;`.
+
 ---
 
 ## 3. Automated Diagnostics Scripts (Planned for Phase 18)
@@ -144,6 +157,6 @@ During Phase 18 through 20, this document will be expanded to include:
 
 ## 5. Current Status & Next Steps
 
-- **Status:** ACTIVE & EXPANDED (Phase 06, 07, 08 playbooks documented).
-- **Immediate Dependency:** Phase 09 media pipeline.
+- **Status:** ACTIVE & EXPANDED (Phase 06, 07, 08, 09 playbooks documented).
+- **Immediate Dependency:** Phase 10 audio extraction and media pipeline.
 - **Execution Target:** Phase 18 through Phase 20 for full automation.

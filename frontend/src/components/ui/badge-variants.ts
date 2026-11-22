@@ -10,20 +10,28 @@ export const badgeVariants = cva(
         secondary:
           "border-border bg-secondary text-secondary-foreground hover:bg-secondary/80",
         destructive:
-          "border-destructive/20 bg-destructive/10 text-destructive-foreground hover:bg-destructive/20",
+          "border-destructive/30 bg-destructive/15 text-destructive-foreground hover:bg-destructive/25",
         outline: "border-border text-foreground hover:bg-secondary/50",
         success:
-          "border-emerald-500/20 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20",
+          "border-emerald-500/30 bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25",
         warning:
-          "border-amber-500/20 bg-amber-500/10 text-amber-400 hover:bg-amber-500/20",
+          "border-amber-500/30 bg-amber-500/15 text-amber-400 hover:bg-amber-500/25",
         info:
-          "border-blue-500/20 bg-blue-500/10 text-blue-400 hover:bg-blue-500/20",
+          "border-blue-500/30 bg-blue-500/15 text-blue-400 hover:bg-blue-500/25",
         subtle:
-          "border-primary/20 bg-primary/10 text-primary",
+          "border-primary/30 bg-primary/10 text-primary",
+        disabled:
+          "border-zinc-800 bg-zinc-900/60 text-zinc-500 cursor-not-allowed",
+      },
+      size: {
+        default: "px-2.5 py-0.5 text-xs",
+        sm: "px-2 py-0.2 text-[10px] tracking-wide",
+        lg: "px-3 py-1 text-sm font-semibold",
       },
     },
     defaultVariants: {
       variant: "default",
+      size: "default",
     },
   }
 );

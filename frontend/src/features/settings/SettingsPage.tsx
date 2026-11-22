@@ -1,6 +1,6 @@
 import React from "react";
 import { Link } from "react-router-dom";
-import { HardDrive, Cpu, ShieldCheck } from "lucide-react";
+import { HardDrive, Cpu, ShieldCheck, Sparkles } from "lucide-react";
 import { PageContainer } from "../../components/layout/PageContainer";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
@@ -15,12 +15,20 @@ export const SettingsPage: React.FC = () => {
       title="Application Settings"
       description="Configure hardware acceleration preferences, storage paths, and model configurations."
       action={
-        <Button asChild variant="outline" size="sm" className="gap-2">
-          <Link to="/settings/storage">
-            <HardDrive className="h-3.5 w-3.5 text-primary" />
-            Storage Breakdown
-          </Link>
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button asChild variant="outline" size="sm" className="gap-2">
+            <Link to="/design-system">
+              <Sparkles className="h-3.5 w-3.5 text-primary" />
+              Design System
+            </Link>
+          </Button>
+          <Button asChild variant="outline" size="sm" className="gap-2">
+            <Link to="/settings/storage">
+              <HardDrive className="h-3.5 w-3.5 text-primary" />
+              Storage
+            </Link>
+          </Button>
+        </div>
       }
     >
       <Tabs defaultValue="hardware" className="space-y-6">

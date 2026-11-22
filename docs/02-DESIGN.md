@@ -326,20 +326,54 @@ The application utilizes strict semantic CSS variables matching Tailwind CSS con
 
 ## 4. Design System Component Catalog
 
-| Component | Selector / Usage | Visual Styling | States |
+### 4.1 UI Primitives (`frontend/src/components/ui/`)
+
+| Component | Selector / Usage | Visual Styling | Supported Variants & States |
 |---|---|---|---|
-| **Button** | `<Button variant="...">` | Rounded 6px, font-medium, 13px, transition-colors | Default, Hover, Active, Disabled, Loading (Spinner) |
-| **Input** | `<Input />` | Background `#0f0f12`, border `1px solid #27272a`, focus ring violet | Default, Focused, Invalid (Red border), Disabled |
-| **Trim Slider**| `<TrimSlider />` | Double handle range with waveform canvas track | Dragging start, Dragging end, Snapped to pause |
-| **Badge** | `<Badge variant="...">` | Pill shape, 11px font-mono uppercase, py-0.5 px-2 | Neutral, Violet, Green (Safe), Amber (CPU Fallback), Red (Error) |
-| **Card** | `<Card />` | Background `#0f0f12`, border `#27272a`, rounded-lg | Default, Hover surface `#16161a`, Selected border violet |
-| **Dialog** | `<Dialog />` | Backdrop blur `rgba(0,0,0,0.7)`, centered modal `#0f0f12` | Open, Close animation |
-| **Skeleton** | `<Skeleton />` | Animated pulse background `#1f1f23` | Shimmering 1.5s pulse |
-| **Toast** | `toast.success / error`| Dark surface with colored leading icon, bottom-right | Slide in, 4s duration, dismiss on click |
+| **Button** | `<Button variant="..." size="..." loading={...}>` | Rounded 8px, font-medium, 14px text | `default`, `secondary`, `destructive`, `outline`, `ghost`, `link`, `subtle`; `loading` with spinner, `disabled`, `asChild` |
+| **Card** | `<Card variant="...">` | Background `#0f0f12`, border `#27272a`, rounded-xl | `default`, `interactive` (hover border & surface), `metric`, `section`, `compact` |
+| **Badge** | `<Badge variant="..." size="...">` | Pill shape, 12px font-medium, border | `default`, `secondary`, `destructive`, `outline`, `success`, `warning`, `info`, `subtle`, `disabled` |
+| **Input** | `<Input error={...} />` | Background `#0f0f12`, border `#27272a`, ring violet | Default, Focused, Invalid (destructive border & ring, `aria-invalid`), Disabled |
+| **Label** | `<Label required>` | Font-medium 12px, optional asterisk | Default, Required (red asterisk) |
+| **Textarea** | `<Textarea error={...} />` | Multi-line auto-resizing dark textarea | Default, Focused, Invalid, Disabled |
+| **Select** | `<Select error={...}>` | Native accessible dropdown with chevron | Default, Focused, Invalid, Disabled |
+| **Checkbox** | `<Checkbox checked={...} />` | Accessible checkbox with SVG checkmark | Checked, Unchecked, Disabled, with Label & Description |
+| **Switch** | `<Switch checked={...} />` | Smooth sliding toggle switch | Checked, Unchecked, Disabled, with Label & Description |
+| **Slider** | `<Slider value={...} />` | Precision single-handle slider with percentage fill | Single value, Range, with Label and Tabular value readout |
+| **Progress** | `<Progress value={...} />` | Determinate / Indeterminate bar | Determinate (0-100%), Indeterminate (pulsing), `success`, `warning`, `destructive` |
+| **Table** | `<Table>`, `<TableHeader>`, `<TableRow>`, etc. | High-density semantic tabular layout | Default, Hover row highlight, font-mono tabular data |
+| **ScrollArea** | `<ScrollArea maxHeight={...}>` | Subtle custom dark scrollbar container | Vertical, Horizontal, Auto |
+| **Kbd** | `<Kbd>Ctrl + K</Kbd>` | Workstation keyboard hotkey badge | Monospace 10px uppercase |
+| **StatusIndicator**| `<StatusIndicator status="...">` | Status dot with optional ping animation | `healthy`, `degraded`, `error`, `processing`, `offline`, `neutral` |
+| **Dialog** | `<Dialog>`, `<DialogContent>` | Accessible modal with backdrop blur | Open, Close, Escape key dismissal, Focus trap |
+| **Toast** | `toast.success()`, `error()`, etc. | Floating alerts fixed at bottom-right | `success`, `error`, `warning`, `info` with auto-dismissal |
+
+### 4.2 Workstation-Specific Modules (`frontend/src/components/workstation/`)
+
+| Component | Selector / Usage | Purpose & Technical Contract |
+|---|---|---|
+| **VideoThumbnail** | `<VideoThumbnail aspectRatio="16:9" durationSeconds={...} />` | 16:9, 9:16 or 1:1 container with duration badge, resolution tag, play overlay, and clean fallback |
+| **VideoMetadataRow** | `<VideoMetadataRow durationSeconds={...} width={...} fps={...} />` | Compact technical pill row: duration, resolution, fps, video/audio codecs, and formatted file size |
+| **ProcessingStatus** | `<ProcessingStatus status="..." progressPercent={...} />` | Pipeline task state (`QUEUED`, `PROCESSING`, `COMPLETED`, `FAILED`, `CANCELLED`) with progress and step log |
+| **StorageUsageBar** | `<StorageUsageBar freeSpaceGb={...} totalSpaceGb={...} />` | Visual SSD capacity bar with GB readouts and critical warning if free space &lt; 10GB |
+| **HardwareMetricCard** | `<HardwareMetricCard title="..." value="..." percent={...} />` | Real-time GPU VRAM, compute utilization, RAM, and disk metrics with safe/warn/error thresholds |
+| **EmptyVideoLibrary** | `<EmptyVideoLibrary onUploadClick={...} />` | Workstation empty state with upload CTA and local SSD storage guarantee notes |
+| **FeatureUnavailable** | `<FeatureUnavailable featureName="..." activationPhase="..." />` | Transparent banner explaining which upcoming phase activates the feature |
+| **SectionHeader** | `<SectionHeader title="..." description="..." badge={...} />` | Reusable section/page title container with actions and badge slots |
+| **PageToolbar** | `<PageToolbar searchSlot={...} filterSlot={...} actionSlot={...} />` | Workstation toolbar for search filters, sorting dropdowns, and batch operations |
+
+### 4.3 Component Showcase Route
+
+The application includes an internal showcase at route `/design-system` (`ComponentShowcasePage.tsx`) which renders live interactive instances of all tokens, primitives, form controls, and workstation components.
 
 ---
 
 ## 5. Current Status & Next Steps
 
-- **Status:** **APPROVED & FINALIZED.**
-- **Immediate Next Step:** Proceed to Phase 05 Part 2 (AI Agent Architecture & Processing Pipeline in `06-AGENTS.md`).
+- **Status:** **PHASE 09 (DESIGN SYSTEM & UI COMPONENTS) COMPLETED & VERIFIED.**
+- **Implementation Highlights:**
+  - Token scale with HSL CSS variables, dark palette (#09090b canvas, #0f0f12 panels, #7c3aed primary violet), karaoke accents, and telemetry tokens.
+  - 17 UI primitives and 9 workstation-specific components implemented and tested.
+  - Component Showcase view mounted at `/design-system` and linked from Settings.
+  - 51/51 frontend Vitest tests passing; ESLint clean; TypeScript strict build clean.
+- **Immediate Next Step:** Proceed to Phase 10 (Audio Extraction & Media Metadata Pipeline) upon user approval.

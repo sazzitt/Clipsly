@@ -124,15 +124,13 @@ clipsly/
 
 ## 4. Current Status & Next Steps
 
-- **Status:** PHASE 08 COMPLETED & VERIFIED.
+- **Status:** PHASE 09 COMPLETED & VERIFIED.
 - **Frontend Architecture (Phase 07):** Clean modular directories, 11 routes, 12 UI primitives, typed API client, and 20 passing unit tests.
-- **Backend Architecture (Phase 08):**
-  - **Configuration Management:** Centralized Pydantic Settings v2 (`backend/app/core/config.py`) and `.env.example`.
-  - **Structured Logging:** Rotating file handler (10MB, 5 backups) to `logs/clipsly_app.log` and formatted console output.
-  - **Exception & Error Handling:** Centralized exception hierarchy (`backend/app/core/exceptions.py`) and standard JSON error envelope (`error_code`, `detail`, `error: {code, message, details}`).
-  - **Middleware Infrastructure:** Correlation ID tracking (`X-Request-ID`), request timing (`X-Process-Time-Ms`), and loopback security (`LocalhostSecurityMiddleware`).
-  - **Relational Data Layer:** All 8 SQLAlchemy 2.0 Async ORM models (`Video`, `ProcessingJob`, `Transcript`, `TranscriptSegment`, `Highlight`, `Clip`, `ExportJob`, `ApplicationSetting`) with relationships, cascade deletes, and check constraints.
-  - **Database Migrations:** Alembic revision `c0221816e0e3_create_initial_schema.py` applied to `data/clipsly.db` with WAL mode and foreign keys enabled.
-  - **API v1 Routers:** Mounted under `/api/v1` for `/system`, `/videos`, `/jobs`, `/transcripts`, `/highlights`, `/clips`, `/exports`.
-  - **Automated Verification:** 24 backend pytest tests passing in 1.21s; 20 frontend Vitest tests passing; ESLint clean; TypeScript production build clean.
-- **Execution Target:** Media Ingestion & Chunked Upload Pipeline activates in **Phase 09**.
+- **Backend Architecture (Phase 08):** Centralized Pydantic Settings v2, structured rotating logging, standardized error envelopes, 3 middlewares (security, correlation, timing), 8 SQLAlchemy 2.0 Async ORM models, Alembic migrations, and 7 API v1 domain routers with 24 passing pytest tests.
+- **Design System & UI Components (Phase 09):**
+  - **Design Token System:** Strict HSL CSS variables and TypeScript constants (`frontend/src/styles/tokens.ts`) for surfaces, typography, karaoke highlights, and telemetry.
+  - **UI Primitives:** 17 standardized components (`Button`, `Card`, `Badge`, `Input`, `Label`, `Select`, `Checkbox`, `Switch`, `Slider`, `Textarea`, `Progress`, `Table`, `ScrollArea`, `Kbd`, `StatusIndicator`, `Dialog`, `Toast`).
+  - **Workstation-Specific Modules:** 9 reusable components (`VideoThumbnail`, `VideoMetadataRow`, `ProcessingStatus`, `StorageUsageBar`, `HardwareMetricCard`, `EmptyVideoLibrary`, `FeatureUnavailable`, `SectionHeader`, `PageToolbar`).
+  - **Component Showcase Route:** Live interactive showcase page accessible at `/design-system` and linked from Settings.
+  - **Quality Gates:** 51 frontend Vitest tests passing in 7.97s; 24 backend pytest tests passing in 1.19s; ESLint clean (0 errors, 0 warnings); TypeScript strict build clean (`tsc -b && vite build`).
+- **Execution Target:** Audio Extraction & Media Metadata Pipeline begins in **Phase 10**.

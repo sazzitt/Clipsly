@@ -4,26 +4,41 @@
 
 @layer base {
   :root {
-    --background: 240 10% 3.9%;
-    --foreground: 0 0% 98%;
-    --card: 240 10% 6.5%;
+    /* Surfaces & Backgrounds */
+    --background: 240 10% 3.9%;          /* #09090b - Canvas Root */
+    --foreground: 0 0% 98%;              /* #fafafa - High-Contrast Primary Text */
+    --card: 240 10% 5.9%;                /* #0f0f12 - Panel Surface */
+    --card-hover: 240 10% 8.5%;          /* #16161a - Interactive Hover Surface */
     --card-foreground: 0 0% 98%;
-    --popover: 240 10% 6.5%;
+    --popover: 240 10% 4.9%;             /* #0c0c0e - Menus & Dropdowns */
     --popover-foreground: 0 0% 98%;
-    --primary: 263.4 70% 50.4%;
-    --primary-foreground: 210 20% 98%;
-    --secondary: 240 3.7% 15.9%;
+    --border: 240 3.7% 15.9%;            /* #27272a - Panel Dividers */
+    --input: 240 3.7% 15.9%;             /* #27272a - Input Borders */
+
+    /* Primary Violet & Subdued Neutrals */
+    --primary: 263.4 70% 50.4%;          /* #7c3aed - Electric Violet */
+    --primary-foreground: 0 0% 100%;
+    --secondary: 240 3.7% 15.9%;        /* #27272a - Subdued Action */
     --secondary-foreground: 0 0% 98%;
     --muted: 240 3.7% 15.9%;
-    --muted-foreground: 240 5% 64.9%;
+    --muted-foreground: 240 5% 64.9%;    /* #a1a1aa - Subtitles & Secondary Metrics */
     --accent: 240 3.7% 15.9%;
     --accent-foreground: 0 0% 98%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 240 3.7% 15.9%;
-    --input: 240 3.7% 15.9%;
+    --destructive: 0 84.2% 60.2%;        /* #ef4444 - Danger / Stop */
+    --destructive-foreground: 0 0% 100%;
     --ring: 263.4 70% 50.4%;
     --radius: 0.5rem;
+
+    /* Subtitle Highlight & Karaoke Tokens */
+    --karaoke-amber: 45 93% 47%;         /* #f59e0b - Warm Viral Hook Gold */
+    --karaoke-cyan: 189 94% 43%;         /* #06b6d4 - Cyber Neon Cyan */
+    --karaoke-mint: 160 84% 39%;         /* #10b981 - Fresh Mint Green */
+    --karaoke-rose: 350 89% 60%;         /* #f43f5e - High-Energy Rose */
+
+    /* System Telemetry Badges */
+    --telemetry-safe: 142 71% 45%;       /* #22c55e - Green / Safe */
+    --telemetry-warn: 38 92% 50%;        /* #f59e0b - Warning / Contested */
+    --telemetry-err: 0 84% 60%;          /* #ef4444 - Error / Depleted */
   }
 }
 
@@ -32,10 +47,27 @@
     @apply border-border;
   }
   body {
-    @apply bg-background text-foreground font-sans;
+    @apply bg-background text-foreground font-sans antialiased;
     font-feature-settings: "rlig" 1, "calt" 1;
+    overflow-x: hidden;
   }
   code, pre, kbd {
     font-family: "JetBrains Mono", monospace;
   }
+}
+
+/* Custom Scrollbar for Workstation Panels */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: hsl(var(--border));
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--muted-foreground) / 0.4);
 }

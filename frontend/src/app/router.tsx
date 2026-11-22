@@ -13,6 +13,7 @@ import { StudioPage } from "../features/clips/StudioPage";
 import { ExportsPage } from "../features/exports/ExportsPage";
 import { SettingsPage } from "../features/settings/SettingsPage";
 import { StoragePage } from "../features/settings/StoragePage";
+import { ComponentShowcasePage } from "../features/showcase/ComponentShowcasePage";
 
 export const router = createBrowserRouter([
   {
@@ -63,6 +64,10 @@ export const router = createBrowserRouter([
       {
         path: "settings/storage",
         element: <StoragePage />,
+      },
+      {
+        path: "design-system",
+        element: <ComponentShowcasePage />,
       },
       {
         path: "*",

@@ -70,10 +70,17 @@ Every feature follows a disciplined 5-stage lifecycle:
 6. **Writing Tests:** Add integration tests in `backend/tests/` verifying success and standardized error envelopes.
 7. **Verifying Suite:** Run `.\.venv\Scripts\pytest.exe -v backend/tests` to confirm zero regressions.
 
+### 3.6 Using Design Tokens & Workstation UI Components
+1. **Importing Primitives:** Import UI primitives from `@/components/ui` (`Button`, `Card`, `Badge`, `Input`, `Select`, `Slider`, `Switch`, etc.).
+2. **Using Workstation Components:** Import specialized media components from `@/components/workstation` (`VideoThumbnail`, `VideoMetadataRow`, `ProcessingStatus`, `StorageUsageBar`, `HardwareMetricCard`, `EmptyVideoLibrary`, `FeatureUnavailable`, `SectionHeader`, `PageToolbar`).
+3. **Referencing Design Tokens:** Access programmatic color or scale constants via `import { colors, typography } from "@/styles/tokens"`.
+4. **Testing in Showcase:** Run `npm run dev` and navigate to `http://127.0.0.1:5173/design-system` to preview components in isolation before wiring to live features.
+5. **Running Quality Checks:** Execute `npm test`, `npm run lint`, and `npx tsc -b` prior to committing.
+
 ---
 
 ## 4. Operational Status & Next Steps
 
-- **Status:** ACTIVE (Phase 08 Complete).
-- **Current Baseline:** Backend API infrastructure, 8 ORM models, Alembic migrations, 3 middlewares, 24 pytest tests passing; Frontend architecture with 11 routes and 20 Vitest tests passing.
-- **Next Phase:** Phase 09 (Local Video Upload & Chunked Ingestion Pipeline).
+- **Status:** ACTIVE (Phase 09 Complete).
+- **Current Baseline:** Backend API infrastructure, 8 ORM models, Alembic migrations, 3 middlewares, 24 pytest tests passing; Frontend workstation design system, 17 UI primitives, 9 workstation components, showcase route, and 51 Vitest tests passing.
+- **Next Phase:** Phase 10 (Audio Extraction & Media Metadata Pipeline).
