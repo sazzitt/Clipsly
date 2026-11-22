@@ -14,7 +14,7 @@ All project requirements, architecture specifications, database designs, API con
 | [02-DESIGN.md](file:///c:/Users/SAJIT%20THAKUR/OneDrive/Pictures/Documents/clipsly/docs/02-DESIGN.md) | **UI/UX Design Specifications** | Design system tokens, color palettes, dark mode styling, layout grids, shadcn/ui components, and interactive studio UX patterns. | Phase 02 / 05 | *PLANNED* |
 | [03-ARCHITECTURE.md](file:///c:/Users/SAJIT%20THAKUR/OneDrive/Pictures/Documents/clipsly/docs/03-ARCHITECTURE.md) | **System Architecture & Hardware Strategy** | High-level system topology, process boundaries, 4GB VRAM allocation budget, FFmpeg media pipeline, sequential model lifecycle, and ADRs. | Phase 02 | **COMPLETE (APPROVED)** |
 | [04-DATABASE.md](file:///c:/Users/SAJIT%20THAKUR/OneDrive/Pictures/Documents/clipsly/docs/04-DATABASE.md) | **Database Schema & Storage Engine** | SQLite database architecture, Entity-Relationship (ER) model, 8 table schemas, index strategies, WAL mode configuration, and local filesystem directory tree. | Phase 03 | **COMPLETE (APPROVED)** |
-| [05-API.md](file:///c:/Users/SAJIT%20THAKUR/OneDrive/Pictures/Documents/clipsly/docs/05-API.md) | **FastAPI REST API Specification** | Comprehensive OpenAPI contracts, request/response schemas, error status codes, and Server-Sent Events (SSE) progress streams. | Phase 04 | *PLANNED* |
+| [05-API.md](file:///c:/Users/SAJIT%20THAKUR/OneDrive/Pictures/Documents/clipsly/docs/05-API.md) | **FastAPI REST API Specification** | Comprehensive OpenAPI contracts, 40 endpoint schemas, error status codes, video upload contracts, and Server-Sent Events (SSE) progress streams. | Phase 04 | **COMPLETE (APPROVED)** |
 | [06-AGENTS.md](file:///c:/Users/SAJIT%20THAKUR/OneDrive/Pictures/Documents/clipsly/docs/06-AGENTS.md) | **AI Agent & Highlight Logic** | Algorithmic scoring formulas, lexical hook heuristics, transcript chunking logic, and optional external AI augmentation. | Phase 10 | **FINALIZED (ADR-003)** |
 | [07-README.md](file:///c:/Users/SAJIT%20THAKUR/OneDrive/Pictures/Documents/clipsly/docs/07-README.md) | **Master Documentation Index** | Central index, document navigation, stack summary, hardware guidelines, and phase tracker (this document). | Phase 01 / 02 | **COMPLETE (ACTIVE)** |
 | [08-PROJECT-IMPLEMENTATION.md](file:///c:/Users/SAJIT%20THAKUR/OneDrive/Pictures/Documents/clipsly/docs/08-PROJECT-IMPLEMENTATION.md) | **Project Implementation Blueprint** | Codebase directory structure, module separation of concerns, coding conventions, typing standards, and design patterns. | Phase 04 / 05 | **FINALIZED (ADR-001/005)** |
@@ -55,9 +55,9 @@ All project requirements, architecture specifications, database designs, API con
 
 - [x] **Phase 01:** Complete Project Documentation & PRD *(Approved)*
 - [x] **Phase 02:** System Architecture & Hardware Strategy *(Approved)*
-- [x] **Phase 03:** Database Schema & Local Storage Engine *(Complete)*
-- [ ] **Phase 04:** Backend Foundation & FastAPI Scaffolding *(Next)*
-- [ ] **Phase 05:** Frontend Foundation & shadcn/ui Design System
+- [x] **Phase 03:** Database Schema & Local Storage Engine *(Approved)*
+- [x] **Phase 04:** API Design & Contracts *(Complete)*
+- [ ] **Phase 05:** Frontend Foundation & shadcn/ui Design System *(Next)*
 - [ ] **Phase 06:** Local Video Upload & Ingestion Pipeline
 - [ ] **Phase 07:** Audio Extraction & Media Metadata Pipeline
 - [ ] **Phase 08:** Faster-Whisper Transcription Engine

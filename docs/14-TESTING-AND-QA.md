@@ -39,7 +39,8 @@ Testing a multimedia application involving audio/video codecs, neural network sp
 2. **Integration Testing:**
    - Database operations (SQLite WAL concurrent reads/writes, foreign key cascades, transaction rollbacks).
    - Alembic migration tests (upgrade head $\to$ downgrade $\to$ upgrade head).
-   - FastAPI endpoint response models and error status codes.
+   - FastAPI endpoint contracts and error envelopes across all 40 endpoints (`httpx.AsyncClient`).
+   - Server-Sent Events (SSE) stream event validation (`job_progress`, `job_completed`, `hardware_telemetry`).
    - Subprocess invocation of `ffprobe` and `ffmpeg` against deterministic test media.
 3. **End-to-End Media Pipeline Testing:**
    - Automated run of the full 16-step pipeline from upload to finished 1080x1920 MP4 file using synthetic sample videos.

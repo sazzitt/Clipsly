@@ -23,14 +23,16 @@ clipsly/
 ├── docs/                        # Complete technical documentation suite (01 to 15)
 ├── backend/                     # Python 3.10+ FastAPI Application
 │   ├── app/
-│   │   ├── api/                 # REST routing endpoints
+│   │   ├── api/                 # REST routing endpoints (ADR-009)
 │   │   │   ├── v1/
+│   │   │   │   ├── system.py    # Health, info, telemetry, settings
 │   │   │   │   ├── videos.py    # Ingestion, listing, streaming
+│   │   │   │   ├── jobs.py      # Background pipeline job management & SSE
 │   │   │   │   ├── transcripts.py# Transcription queries, edits
 │   │   │   │   ├── highlights.py# Detection triggers, scores
-│   │   │   │   ├── clips.py     # Trim updates, aspect ratio
-│   │   │   │   ├── exports.py   # Render execution, downloads
-│   │   │   │   └── system.py    # Health, hardware telemetry, SSE
+│   │   │   │   ├── clips.py     # Trim updates, aspect ratio, styles
+│   │   │   │   ├── exports.py   # NVENC render execution, downloads
+│   │   │   │   └── storage.py   # Disk usage, cleanup, database backup
 │   │   │   └── router.py        # Centralized APIRouter aggregation
 │   │   ├── core/                # Core configuration & lifecycle
 │   │   │   ├── config.py        # Pydantic Settings & environment variables
@@ -117,5 +119,5 @@ clipsly/
 ## 4. Current Status & Next Steps
 
 - **Status:** ARCHITECTURALLY FINALIZED.
-- **Dependencies:** Database Schema (Phase 03).
-- **Execution Target:** Backend scaffolding begins in **Phase 04**; Frontend scaffolding begins in **Phase 05**.
+- **Dependencies:** API Contracts (Phase 04).
+- **Execution Target:** Frontend scaffolding begins in **Phase 05**.

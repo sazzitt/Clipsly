@@ -57,7 +57,14 @@ Due to the complex interactions between Windows 11 host environments, NVIDIA GPU
   2. If corrupted, restore from latest snapshot in `data/backups/`.
   3. If migration fails, inspect current revision with `alembic current` and reconcile with `alembic stamp head` or roll back with `alembic downgrade -1`.
 
-### 2.6 Windows Long Path & PowerShell Execution Policy Issues
+### 2.6 CORS Rejections & Server-Sent Events (SSE) Disconnections
+- **Symptom:** Browser console logs `Cross-Origin Request Blocked` or `EventSource's response has a MIME type ("text/html") that is not "text/event-stream"`.
+- **Resolution Playbook:**
+  1. Confirm FastAPI CORS middleware includes `http://localhost:5173` and `http://127.0.0.1:5173`.
+  2. Confirm SSE endpoint returns `text/event-stream` with headers `Cache-Control: no-cache` and `Connection: keep-alive`.
+  3. Verify client `EventSource` reconnects with exponential backoff on network drop.
+
+### 2.7 Windows Long Path & PowerShell Execution Policy Issues
 - **Symptom:** File access fails with `FileNotFoundError` on nested directories, or PowerShell refuses to run the activation script (`.\.venv\Scripts\Activate.ps1`).
 - **Resolution Playbook:**
   1. Enable Windows Long Path support in registry: Set `LongPathsEnabled=1` under `HKLM\SYSTEM\CurrentControlSet\Control\FileSystem`.

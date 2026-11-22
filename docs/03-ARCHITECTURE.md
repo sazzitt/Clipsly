@@ -458,9 +458,23 @@ FastAPI utilizes the modern `lifespan` context manager to orchestrate clean star
 - **Reason:** Protects user creative content. Rendered MP4s represent finished creative output and must never be purged without separate, explicit user confirmation.
 - **Status:** **APPROVED.**
 
+### ADR-009: Unified REST + Server-Sent Events (SSE) Architecture
+- **Context:** Long tasks (transcription, rendering) require real-time progress without polling overhead.
+- **Options Considered:** (A) WebSockets, (B) Long-Polling, (C) SSE + REST.
+- **Selected Decision:** **Option C (SSE + REST).**
+- **Reason:** SSE is lightweight, operates over standard HTTP, auto-reconnects natively, and avoids bidirectional WebSocket state complexity for unilateral progress updates.
+- **Status:** **APPROVED.**
+
+### ADR-010: Standardized Millisecond Timecode Representation
+- **Context:** Subtitle synchronization and video cutting require sub-second precision.
+- **Options Considered:** (A) Floating-point seconds (e.g., `12.456`), (B) Integer milliseconds (e.g., `12456`).
+- **Selected Decision:** **Option B (Integer milliseconds).**
+- **Reason:** Floating-point representations introduce IEEE 754 rounding errors during JSON serialization. Integer milliseconds guarantee exact sample alignment.
+- **Status:** **APPROVED.**
+
 ---
 
 ## 13. Current Status & Next Steps
 
 - **Status:** **APPROVED & FINALIZED.**
-- **Immediate Next Step:** Proceed to **Phase 04 (Backend Foundation & FastAPI Scaffolding)** upon user approval.
+- **Immediate Next Step:** Proceed to **Phase 05 (Frontend Foundation & shadcn/ui Design System)** upon user approval.
