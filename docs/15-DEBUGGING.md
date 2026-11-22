@@ -70,6 +70,22 @@ Due to the complex interactions between Windows 11 host environments, NVIDIA GPU
   1. Enable Windows Long Path support in registry: Set `LongPathsEnabled=1` under `HKLM\SYSTEM\CurrentControlSet\Control\FileSystem`.
   2. Update PowerShell execution policy: Run `Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser`.
 
+### 2.8 Python 3.14 & SQLAlchemy AsyncIO Greenlet Requirement
+- **Symptom:** Backend crashes with `ImportError: The SQLAlchemy asyncio module requires that the Python 'greenlet' library is installed`.
+- **Root Cause:** In Python 3.14+, `sqlalchemy.ext.asyncio` requires the native binary `greenlet` package for coroutine context switching.
+- **Resolution Playbook:**
+  1. Add `greenlet>=3.0.0` explicitly to `requirements.txt`.
+  2. Install via pip: `pip install greenlet`.
+  3. Run async engine verification via `python -c "from backend.app.core.database import check_db_connection"`.
+
+### 2.9 Vite React TypeScript CSS Module Resolution Error
+- **Symptom:** `npm run build` fails with `src/main.tsx: error TS2307: Cannot find module './index.css' or its corresponding type declarations`.
+- **Root Cause:** TypeScript strict mode cannot resolve raw `.css` or asset imports without Vite client type definitions.
+- **Resolution Playbook:**
+  1. Ensure `frontend/src/vite-env.d.ts` exists.
+  2. Add `/// <reference types="vite/client" />` inside `vite-env.d.ts`.
+  3. Ensure `tsconfig.app.json` includes `src` in its `"include"` array.
+
 ---
 
 ## 3. Automated Diagnostics Scripts (Planned for Phase 18)

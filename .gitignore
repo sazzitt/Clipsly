@@ -1,0 +1,70 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Python Virtual Environments
+.venv/
+venv/
+ENV/
+env/
+
+# Testing & Coverage
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Local Environment Variables & Secrets
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+
+# Database
+data/*.db
+data/*.db-wal
+data/*.db-shm
+data/backups/*
+!data/.gitkeep
+!data/backups/.gitkeep
+
+# Application Logs
+logs/*
+!logs/.gitkeep
+*.log
+
+# Media & Scratch Storage
+storage/uploads/*
+!storage/uploads/.gitkeep
+storage/audio/*
+!storage/audio/.gitkeep
+storage/transcripts/*
+!storage/transcripts/.gitkeep
+storage/clips/*
+!storage/clips/.gitkeep
+storage/subtitles/*
+!storage/subtitles/.gitkeep
+storage/exports/*
+!storage/exports/.gitkeep
+storage/temp/*
+!storage/temp/.gitkeep
+
+# Node & Frontend dependencies
+node_modules/
+dist/
+dist-ssr/
+*.local
+.npm
+.vite/
+.eslintcache
+
+# IDE & OS Artifacts
+.vscode/
+.idea/
+*.swp
+*.swo
+Thumbs.db
+Desktop.ini
+.DS_Store
