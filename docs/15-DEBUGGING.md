@@ -50,7 +50,14 @@ Due to the complex interactions between Windows 11 host environments, NVIDIA GPU
   2. Increase busy timeout: Ensure SQLite connections set `PRAGMA busy_timeout=30000;` (30 seconds).
   3. Use single-writer async queue architecture for state updates.
 
-### 2.5 Windows Long Path & PowerShell Execution Policy Issues
+### 2.5 SQLite Corruption or Failed Migrations
+- **Symptom:** Application startup fails with `sqlite3.DatabaseError: file is not a database` or Alembic throws `Target database is not up to date`.
+- **Resolution Playbook:**
+  1. Check database integrity: Run `sqlite3 data/clipsly.db "PRAGMA integrity_check;"`.
+  2. If corrupted, restore from latest snapshot in `data/backups/`.
+  3. If migration fails, inspect current revision with `alembic current` and reconcile with `alembic stamp head` or roll back with `alembic downgrade -1`.
+
+### 2.6 Windows Long Path & PowerShell Execution Policy Issues
 - **Symptom:** File access fails with `FileNotFoundError` on nested directories, or PowerShell refuses to run the activation script (`.\.venv\Scripts\Activate.ps1`).
 - **Resolution Playbook:**
   1. Enable Windows Long Path support in registry: Set `LongPathsEnabled=1` under `HKLM\SYSTEM\CurrentControlSet\Control\FileSystem`.

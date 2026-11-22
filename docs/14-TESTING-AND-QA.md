@@ -34,10 +34,11 @@ Testing a multimedia application involving audio/video codecs, neural network sp
 ```
 
 1. **Unit Testing:**
-   - **Backend (Pytest):** Models, Pydantic validation, subtitle ASS formatting, timestamp calculation, heuristic scoring math.
+   - **Backend (Pytest):** Models, Pydantic validation schemas, database CHECK constraints, subtitle ASS formatting, timestamp calculation, heuristic scoring math.
    - **Frontend (Vitest + React Testing Library):** UI component rendering, trim slider drag bounds, state management.
 2. **Integration Testing:**
-   - Database operations (SQLite WAL concurrent reads/writes).
+   - Database operations (SQLite WAL concurrent reads/writes, foreign key cascades, transaction rollbacks).
+   - Alembic migration tests (upgrade head $\to$ downgrade $\to$ upgrade head).
    - FastAPI endpoint response models and error status codes.
    - Subprocess invocation of `ffprobe` and `ffmpeg` against deterministic test media.
 3. **End-to-End Media Pipeline Testing:**

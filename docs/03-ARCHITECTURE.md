@@ -444,9 +444,23 @@ FastAPI utilizes the modern `lifespan` context manager to orchestrate clean star
 - **Consequences:** Small IPC overhead ($< 50\text{ms}$ startup time per process), which is negligible for video operations lasting minutes.
 - **Status:** **APPROVED.**
 
+### ADR-007: SQLite 3 WAL Mode with SQLAlchemy 2.0 Async
+- **Context:** Need an embedded, zero-admin database engine supporting asynchronous FastAPI operations without locking conflicts.
+- **Options Considered:** (A) Raw SQLite3 / aiosqlite, (B) DuckDB, (C) SQLite 3 WAL with SQLAlchemy 2.0 Async.
+- **Selected Decision:** **Option C (SQLite 3 WAL with SQLAlchemy 2.0 Async).**
+- **Reason:** SQLite 3 in WAL mode provides standard ACID compliance, zero setup, and rock-solid reliability on Windows NVMe SSDs. SQLAlchemy 2.0 provides mature async session management and Alembic integration.
+- **Status:** **APPROVED.**
+
+### ADR-008: Preservation of User Exports on Parent Deletion
+- **Context:** Deleting a source video could inadvertently delete hours of rendered short clips.
+- **Options Considered:** (A) Hard delete all files including exports, (B) Preserve exports on disk while deleting database parent records.
+- **Selected Decision:** **Option B (Preserve exports on disk).**
+- **Reason:** Protects user creative content. Rendered MP4s represent finished creative output and must never be purged without separate, explicit user confirmation.
+- **Status:** **APPROVED.**
+
 ---
 
 ## 13. Current Status & Next Steps
 
 - **Status:** **APPROVED & FINALIZED.**
-- **Immediate Next Step:** Proceed to **Phase 03 (Database Schema & Local Storage Engine)** upon user approval.
+- **Immediate Next Step:** Proceed to **Phase 04 (Backend Foundation & FastAPI Scaffolding)** upon user approval.

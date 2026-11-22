@@ -36,7 +36,7 @@ The API exposes a clean, asynchronous interface enabling the React frontend to u
 ### 3.2 Transcription Management
 - `POST /api/videos/{video_id}/transcribe` — Enqueue speech-to-text transcription (Faster-Whisper).
 - `GET /api/videos/{video_id}/transcript` — Retrieve full word-level timestamped transcript.
-- `PATCH /api/transcripts/{transcript_id}/utterances/{utterance_id}` — In-place edit of misheard words.
+- `PATCH /api/transcripts/{transcript_id}/segments/{segment_id}` — In-place edit of misheard words in a segment.
 
 ### 3.3 Highlight Detection & Selection
 - `POST /api/videos/{video_id}/highlights/detect` — Trigger highlight detection engine with target duration parameters.
@@ -54,10 +54,17 @@ The API exposes a clean, asynchronous interface enabling the React frontend to u
 - `GET /api/exports/{job_id}/download` — Stream rendered MP4 file for browser download.
 - `POST /api/exports/{job_id}/reveal` — Trigger Windows File Explorer to highlight the file on disk.
 
-### 3.6 System Health & Telemetry
+### 3.6 Background Pipeline & Job Control
+- `GET /api/videos/{video_id}/jobs` — List all pipeline tasks for a video.
+- `POST /api/jobs/{job_id}/cancel` — Gracefully cancel an active background job and terminate subprocesses.
+
+### 3.7 System Health, Settings & Storage
 - `GET /api/system/health` — Returns backend uptime, CUDA availability, and active job status.
 - `GET /api/system/hardware` — Real-time GPU VRAM utilization, CPU load, and free SSD space.
 - `GET /api/system/events` — Server-Sent Events (SSE) stream broadcasting pipeline task progress.
+- `GET /api/system/settings` — Retrieve user application settings.
+- `PATCH /api/system/settings` — Update user preferences (e.g., API key, default clip length).
+- `POST /api/system/backup` — Trigger hot SQLite backup to `data/backups/`.
 
 ---
 

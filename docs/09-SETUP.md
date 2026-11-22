@@ -70,8 +70,10 @@ cd frontend
 npm install
 cd ..
 
-# 5. Initialize SQLite Database & Storage Folders (Phase 04)
-python -m backend.app.core.init_db
+# 5. Initialize SQLite Database & Local Storage Directories (Phase 04)
+# Creates data/, data/backups/, storage/{uploads,audio,transcripts,clips,subtitles,exports,temp}
+python -m backend.app.core.init_storage
+alembic upgrade head
 
 # 6. Launch development servers
 # Terminal 1: Backend
@@ -95,5 +97,5 @@ During Phase 04, this document will be expanded to include:
 ## 6. Current Status & Next Steps
 
 - **Status:** PLANNED.
-- **Immediate Dependency:** Completion of System Architecture (Phase 02) and Database Schema (Phase 03).
+- **Immediate Dependency:** Scaffolding in Phase 04.
 - **Execution Target:** Phase 04.

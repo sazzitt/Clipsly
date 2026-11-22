@@ -41,18 +41,23 @@ clipsly/
 │   │   ├── models/              # SQLAlchemy 2.0 ORM database models (ADR-005)
 │   │   │   ├── base.py          # DeclarativeBase with timestamp mixins
 │   │   │   ├── video.py         # Video metadata table
-│   │   │   ├── transcript.py    # Transcript table
-│   │   │   ├── utterance.py     # Sentence & word timestamp table
+│   │   │   ├── processing_job.py# Background task table (ADR-001)
+│   │   │   ├── transcript.py    # Transcript header table
+│   │   │   ├── transcript_segment.py # Word-level timestamp utterances
 │   │   │   ├── highlight.py     # Highlight candidate scores table
 │   │   │   ├── clip.py          # User clip configurations table
 │   │   │   ├── export_job.py    # Render job records table
-│   │   │   └── pipeline_job.py  # Background queue task table (ADR-001)
+│   │   │   └── setting.py       # Application settings table
 │   │   ├── schemas/             # Pydantic v2 validation & response schemas
 │   │   │   ├── video.py
+│   │   │   ├── processing_job.py
 │   │   │   ├── transcript.py
+│   │   │   ├── transcript_segment.py
 │   │   │   ├── highlight.py
 │   │   │   ├── clip.py
 │   │   │   ├── export.py
+│   │   │   ├── setting.py
+│   │   │   └── system.py
 │   │   │   └── system.py
 │   │   ├── services/            # Pure business logic domain services
 │   │   │   ├── media/           # FFmpeg / FFprobe wrapper services
