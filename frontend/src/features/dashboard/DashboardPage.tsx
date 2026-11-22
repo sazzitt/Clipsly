@@ -1,215 +1,167 @@
 import React from "react";
-import { Link } from "react-router-dom";
-import { 
-  Upload, 
-  Video, 
-  Film, 
-  Download, 
-  ArrowRight,
-  Layers,
-  CheckCircle,
-  Terminal,
-  Cpu
-} from "lucide-react";
-import { HealthStatusCard } from "../../components/HealthStatusCard";
+import { useNavigate } from "react-router-dom";
+import { AlertCircle, RefreshCw, Terminal } from "lucide-react";
 import { PageContainer } from "../../components/layout/PageContainer";
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
+import { Skeleton } from "../../components/ui/skeleton";
+import { useDashboardData } from "./hooks/useDashboardData";
+import {
+  DashboardHeader,
+  DashboardMetrics,
+  DashboardStorage,
+  DashboardHardware,
+  DashboardRecentVideos,
+  DashboardRecentActivity,
+  DashboardQuickActions,
+  DashboardSystemStatus,
+} from "./components";
 
 export const DashboardPage: React.FC = () => {
+  const navigate = useNavigate();
+  const { summary, isLoading, isRefreshing, error, refresh } = useDashboardData();
+
+  if (isLoading && !summary) {
+    return (
+      <PageContainer>
+        <div className="space-y-6" data-testid="dashboard-loading-skeleton">
+          {/* Header Skeleton */}
+          <div className="rounded-2xl border border-border/80 bg-card/60 p-8 space-y-4">
+            <Skeleton className="h-6 w-48 rounded-full" />
+            <Skeleton className="h-9 w-96 max-w-full" />
+            <Skeleton className="h-4 w-3/4" />
+            <div className="pt-4 grid grid-cols-2 sm:grid-cols-4 gap-4">
+              <Skeleton className="h-4 w-28" />
+              <Skeleton className="h-4 w-28" />
+              <Skeleton className="h-4 w-28" />
+              <Skeleton className="h-4 w-28" />
+            </div>
+          </div>
+
+          {/* Metrics Skeleton */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {Array.from({ length: 4 }).map((_, idx) => (
+              <div key={idx} className="rounded-xl border border-border bg-card/90 p-4 space-y-3">
+                <div className="flex justify-between items-center">
+                  <Skeleton className="h-4 w-24" />
+                  <Skeleton className="h-7 w-7 rounded-lg" />
+                </div>
+                <Skeleton className="h-8 w-16" />
+                <Skeleton className="h-3 w-32" />
+              </div>
+            ))}
+          </div>
+
+          {/* Quick Actions Skeleton */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+            {Array.from({ length: 5 }).map((_, idx) => (
+              <div key={idx} className="rounded-xl border border-border bg-card p-4 space-y-2">
+                <Skeleton className="h-8 w-8 rounded-lg" />
+                <Skeleton className="h-4 w-20" />
+                <Skeleton className="h-3 w-full" />
+              </div>
+            ))}
+          </div>
+
+          {/* Telemetry Skeleton */}
+          <div className="rounded-xl border border-border bg-card/60 p-6 space-y-4">
+            <Skeleton className="h-5 w-40" />
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              {Array.from({ length: 4 }).map((_, idx) => (
+                <Skeleton key={idx} className="h-28 rounded-xl" />
+              ))}
+            </div>
+          </div>
+        </div>
+      </PageContainer>
+    );
+  }
+
+  if (error && !summary) {
+    return (
+      <PageContainer>
+        <div
+          data-testid="dashboard-error-state"
+          className="rounded-2xl border border-destructive/40 bg-destructive/10 p-8 sm:p-12 text-center max-w-2xl mx-auto my-8 space-y-4 shadow-lg"
+        >
+          <div className="flex h-14 w-14 items-center justify-center rounded-full bg-destructive/20 text-destructive mx-auto">
+            <AlertCircle className="h-7 w-7" />
+          </div>
+
+          <div className="space-y-1.5">
+            <h2 className="text-lg font-bold text-foreground">Backend Connection Failed</h2>
+            <p className="text-sm text-destructive font-mono">{error}</p>
+          </div>
+
+          <p className="text-xs text-muted-foreground max-w-md mx-auto leading-relaxed">
+            Ensure the Clipsly FastAPI local server is running on <code className="text-foreground font-mono bg-secondary px-1.5 py-0.5 rounded">http://127.0.0.1:8000</code>.
+          </p>
+
+          <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-3">
+            <Button onClick={() => refresh()} variant="default" className="gap-2">
+              <RefreshCw className="h-4 w-4" />
+              <span>Retry Connection</span>
+            </Button>
+          </div>
+
+          <div className="pt-4 border-t border-destructive/20 text-[11px] font-mono text-muted-foreground flex items-center justify-center gap-2">
+            <Terminal className="h-3 w-3" />
+            <span>Command: python -m uvicorn app.main:app --port 8000</span>
+          </div>
+        </div>
+      </PageContainer>
+    );
+  }
+
+  if (!summary) {
+    return null;
+  }
+
   return (
     <PageContainer>
-      {/* Welcome & Phase 07 Status Hero */}
-      <div className="rounded-2xl border border-violet-500/20 bg-gradient-to-r from-violet-950/20 via-card to-card p-6 sm:p-8 shadow-lg">
-        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
-          <div className="space-y-2 max-w-2xl">
-            <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-violet-500/10 text-violet-400 text-xs font-mono font-medium border border-violet-500/20">
-              <span className="w-1.5 h-1.5 rounded-full bg-violet-400 animate-pulse" />
-              Phase 07 Active: Frontend Architecture & Scalable Router
-            </div>
-            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
-              Clipsly Workstation Dashboard
-            </h1>
-            <p className="text-sm text-muted-foreground leading-relaxed">
-              Complete single-user local web client with centralized API services, React Router navigation, 
-              shadcn design tokens, and real-time backend connectivity.
-            </p>
-          </div>
+      <div className="space-y-8 pb-12">
+        {/* Header Hero */}
+        <DashboardHeader
+          systemHealth={summary.system}
+          isRefreshing={isRefreshing}
+          onRefresh={refresh}
+        />
 
-          <div className="flex flex-col gap-2 shrink-0 text-xs font-mono text-muted-foreground bg-secondary/60 p-4 rounded-xl border border-border">
-            <div className="flex items-center gap-2 text-foreground font-semibold">
-              <Terminal className="h-4 w-4 text-violet-400" />
-              <span>Target Environment</span>
-            </div>
-            <div className="flex justify-between gap-4">
-              <span>Platform:</span>
-              <span className="text-foreground">Windows 11 (64-bit)</span>
-            </div>
-            <div className="flex justify-between gap-4">
-              <span>GPU:</span>
-              <span className="text-foreground">RTX 3050 (4GB)</span>
-            </div>
-            <div className="flex justify-between gap-4">
-              <span>Database:</span>
-              <span className="text-foreground">SQLite WAL Mode</span>
-            </div>
-          </div>
-        </div>
+        {/* Overview Metric Cards */}
+        <DashboardMetrics
+          counts={
+            summary.counts ?? {
+              total_videos: 0,
+              total_clips: 0,
+              active_jobs: 0,
+              completed_exports: 0,
+              total_transcripts: 0,
+              total_highlights: 0,
+            }
+          }
+        />
+
+        {/* Quick Navigation Cards */}
+        <DashboardQuickActions />
+
+        {/* Storage Diagnostics */}
+        {summary.storage && <DashboardStorage storage={summary.storage} />}
+
+        {/* Hardware Telemetry */}
+        {summary.hardware && <DashboardHardware hardware={summary.hardware} />}
+
+        {/* Recent Ingested Videos (Real DB Entities or Clean Empty State) */}
+        <DashboardRecentVideos
+          videos={summary.recent_videos ?? []}
+          totalVideosCount={summary.counts?.total_videos ?? 0}
+          onUploadClick={() => navigate("/upload")}
+        />
+
+        {/* Recent Background Activity (Real Jobs or Idle State) */}
+        <DashboardRecentActivity jobs={summary.recent_jobs ?? []} />
+
+        {/* Backend & Hardware Readiness Diagnostics */}
+        {summary.system && <DashboardSystemStatus system={summary.system} />}
       </div>
-
-      {/* Quick Action Navigation Grid */}
-      <section className="space-y-3">
-        <h2 className="text-xs font-mono font-semibold uppercase tracking-wider text-muted-foreground">
-          Workstation Navigation
-        </h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <Card className="hover:border-primary/40 transition-colors">
-            <CardHeader className="pb-3">
-              <div className="flex items-center justify-between">
-                <div className="p-2 rounded-lg bg-primary/10 text-primary">
-                  <Upload className="h-4 w-4" />
-                </div>
-                <Button asChild variant="ghost" size="iconSm">
-                  <Link to="/upload" aria-label="Go to upload">
-                    <ArrowRight className="h-4 w-4" />
-                  </Link>
-                </Button>
-              </div>
-              <CardTitle className="text-sm mt-2">Upload Video</CardTitle>
-              <CardDescription>Ingest local MP4/MOV files to SSD storage.</CardDescription>
-            </CardHeader>
-          </Card>
-
-          <Card className="hover:border-primary/40 transition-colors">
-            <CardHeader className="pb-3">
-              <div className="flex items-center justify-between">
-                <div className="p-2 rounded-lg bg-secondary text-foreground">
-                  <Video className="h-4 w-4 text-emerald-400" />
-                </div>
-                <Button asChild variant="ghost" size="iconSm">
-                  <Link to="/videos" aria-label="Go to video library">
-                    <ArrowRight className="h-4 w-4" />
-                  </Link>
-                </Button>
-              </div>
-              <CardTitle className="text-sm mt-2">Video Library</CardTitle>
-              <CardDescription>Browse ingested videos and transcripts.</CardDescription>
-            </CardHeader>
-          </Card>
-
-          <Card className="hover:border-primary/40 transition-colors">
-            <CardHeader className="pb-3">
-              <div className="flex items-center justify-between">
-                <div className="p-2 rounded-lg bg-secondary text-foreground">
-                  <Film className="h-4 w-4 text-blue-400" />
-                </div>
-                <Button asChild variant="ghost" size="iconSm">
-                  <Link to="/clips" aria-label="Go to clips">
-                    <ArrowRight className="h-4 w-4" />
-                  </Link>
-                </Button>
-              </div>
-              <CardTitle className="text-sm mt-2">Clips Library</CardTitle>
-              <CardDescription>Preview highlights, aspect ratios, and styles.</CardDescription>
-            </CardHeader>
-          </Card>
-
-          <Card className="hover:border-primary/40 transition-colors">
-            <CardHeader className="pb-3">
-              <div className="flex items-center justify-between">
-                <div className="p-2 rounded-lg bg-secondary text-foreground">
-                  <Download className="h-4 w-4 text-violet-400" />
-                </div>
-                <Button asChild variant="ghost" size="iconSm">
-                  <Link to="/exports" aria-label="Go to exports">
-                    <ArrowRight className="h-4 w-4" />
-                  </Link>
-                </Button>
-              </div>
-              <CardTitle className="text-sm mt-2">Export Queue</CardTitle>
-              <CardDescription>Monitor NVENC rendered 9:16 vertical exports.</CardDescription>
-            </CardHeader>
-          </Card>
-        </div>
-      </section>
-
-      {/* Backend & Hardware Diagnostics (Preserves Phase 06 functionality) */}
-      <section className="space-y-3">
-        <h2 className="text-xs font-mono font-semibold uppercase tracking-wider text-muted-foreground">
-          Telemetry & Hardware Health
-        </h2>
-        <HealthStatusCard />
-      </section>
-
-      {/* Roadmap Milestone Readiness */}
-      <section className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card>
-          <CardHeader>
-            <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
-              <Layers className="h-4 w-4 text-violet-400" />
-              <span>Frontend Architecture</span>
-            </div>
-            <CardDescription>Established modular directories and router.</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-2 text-xs font-mono text-muted-foreground">
-            <div className="flex items-center gap-2">
-              <CheckCircle className="h-3.5 w-3.5 text-emerald-400" />
-              <span>React Router 6.28</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <CheckCircle className="h-3.5 w-3.5 text-emerald-400" />
-              <span>shadcn/ui Design Tokens</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <CheckCircle className="h-3.5 w-3.5 text-emerald-400" />
-              <span>Centralized API Client</span>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
-              <Cpu className="h-4 w-4 text-emerald-400" />
-              <span>Memory Guardrails</span>
-            </div>
-            <CardDescription>Respects 4GB VRAM ceiling.</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-2 text-xs font-mono text-muted-foreground">
-            <div className="flex items-center gap-2">
-              <CheckCircle className="h-3.5 w-3.5 text-emerald-400" />
-              <span>Sequential Model Execution</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <CheckCircle className="h-3.5 w-3.5 text-emerald-400" />
-              <span>Zero Concurrent VRAM Load</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <CheckCircle className="h-3.5 w-3.5 text-emerald-400" />
-              <span>NVENC Hardware Accelerated</span>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
-              <Terminal className="h-4 w-4 text-blue-400" />
-              <span>Next Phase Scope</span>
-            </div>
-            <CardDescription>Pipeline activation starts next.</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-2 text-xs font-mono text-muted-foreground">
-            <div className="flex items-center gap-2 text-foreground font-semibold">
-              <ArrowRight className="h-3.5 w-3.5 text-violet-400" />
-              <span>Phase 08: Video Ingestion & FFprobe</span>
-            </div>
-            <div className="text-[11px] text-muted-foreground">
-              Local file chunking, SQLite schema mapping, and probe analysis.
-            </div>
-          </CardContent>
-        </Card>
-      </section>
     </PageContainer>
   );
 };

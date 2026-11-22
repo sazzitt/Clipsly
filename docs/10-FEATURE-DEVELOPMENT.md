@@ -81,6 +81,9 @@ Every feature follows a disciplined 5-stage lifecycle:
 
 ## 4. Operational Status & Next Steps
 
-- **Status:** ACTIVE (Phase 09 Complete).
-- **Current Baseline:** Backend API infrastructure, 8 ORM models, Alembic migrations, 3 middlewares, 24 pytest tests passing; Frontend workstation design system, 17 UI primitives, 9 workstation components, showcase route, and 51 Vitest tests passing.
-- **Next Phase:** Phase 10 (Audio Extraction & Media Metadata Pipeline).
+- **Status:** ACTIVE (Phase 10 Complete).
+- **Current Baseline:** Backend API infrastructure, 8 ORM models, Alembic migrations, 3 middlewares, 26 pytest tests passing; Frontend workstation design system, dashboard overview feature, 17 UI primitives, 9 workstation components, showcase route, and 56 Vitest tests passing.
+- **Dashboard Architecture:**
+  - Single consolidated telemetry endpoint (`GET /api/v1/system/dashboard`) delivering real SQLite counts, true Clipsly storage metrics, hardware telemetry, and recent videos/jobs.
+  - Reusable React components under `frontend/src/features/dashboard/components/` consuming typed API client and `useDashboardData` hook.
+- **Next Phase:** Phase 11 (Local Video Upload & Ingestion Pipeline).

@@ -124,7 +124,7 @@ clipsly/
 
 ## 4. Current Status & Next Steps
 
-- **Status:** PHASE 09 COMPLETED & VERIFIED.
+- **Status:** PHASE 10 COMPLETED & VERIFIED.
 - **Frontend Architecture (Phase 07):** Clean modular directories, 11 routes, 12 UI primitives, typed API client, and 20 passing unit tests.
 - **Backend Architecture (Phase 08):** Centralized Pydantic Settings v2, structured rotating logging, standardized error envelopes, 3 middlewares (security, correlation, timing), 8 SQLAlchemy 2.0 Async ORM models, Alembic migrations, and 7 API v1 domain routers with 24 passing pytest tests.
 - **Design System & UI Components (Phase 09):**
@@ -132,5 +132,10 @@ clipsly/
   - **UI Primitives:** 17 standardized components (`Button`, `Card`, `Badge`, `Input`, `Label`, `Select`, `Checkbox`, `Switch`, `Slider`, `Textarea`, `Progress`, `Table`, `ScrollArea`, `Kbd`, `StatusIndicator`, `Dialog`, `Toast`).
   - **Workstation-Specific Modules:** 9 reusable components (`VideoThumbnail`, `VideoMetadataRow`, `ProcessingStatus`, `StorageUsageBar`, `HardwareMetricCard`, `EmptyVideoLibrary`, `FeatureUnavailable`, `SectionHeader`, `PageToolbar`).
   - **Component Showcase Route:** Live interactive showcase page accessible at `/design-system` and linked from Settings.
-  - **Quality Gates:** 51 frontend Vitest tests passing in 7.97s; 24 backend pytest tests passing in 1.19s; ESLint clean (0 errors, 0 warnings); TypeScript strict build clean (`tsc -b && vite build`).
-- **Execution Target:** Audio Extraction & Media Metadata Pipeline begins in **Phase 10**.
+- **Dashboard Development & Workstation Overview (Phase 10):**
+  - **Aggregated Backend Endpoint:** `GET /api/v1/system/dashboard` queries SQLite WAL for entity counts (`videos`, `clips`, `jobs`, `exports`, `transcripts`, `highlights`), calculates true Clipsly storage consumption vs NVMe partition space, checks low headroom (<10GB) status, queries hardware telemetry (`nvidia-smi`/Windows `ctypes`), and returns top 5 recent videos and jobs.
+  - **Modular UI Feature Architecture:** `frontend/src/features/dashboard/components/` with `DashboardHeader`, `DashboardMetrics`, `DashboardStorage`, `DashboardHardware`, `DashboardRecentVideos`, `DashboardRecentActivity`, `DashboardQuickActions`, and `DashboardSystemStatus`.
+  - **Zero Fake Mock Data:** In an empty database, clean empty states are rendered (`EmptyVideoLibrary`, idle jobs card) with direct CTAs to `/upload`.
+  - **Data Fetching Hook:** `useDashboardData` with `AbortController` cancellation, error handling, and manual telemetry refresh support.
+  - **Quality Gates:** 56 frontend Vitest tests passing in 9.65s; 26 backend pytest tests passing in 1.68s; ESLint clean (0 errors, 0 warnings); TypeScript strict build clean (`tsc -b && vite build` in 11.2s).
+- **Execution Target:** Local Video Upload & Ingestion Pipeline begins in **Phase 11**.

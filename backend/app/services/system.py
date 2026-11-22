@@ -5,14 +5,27 @@ import re
 import shutil
 import subprocess
 import time
-from typing import Any, Dict, Optional
-from sqlalchemy import select
+from typing import Any, Dict, List, Optional
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.app.core.config import settings
 from backend.app.core.logging import logger
+from backend.app.models.clip import Clip
+from backend.app.models.export_job import ExportJob
+from backend.app.models.highlight import Highlight
+from backend.app.models.processing_job import ProcessingJob
 from backend.app.models.setting import ApplicationSetting
-from backend.app.schemas.system import SystemHardwareTelemetry, SystemInfoResponse
+from backend.app.models.transcript import Transcript
+from backend.app.models.video import Video
+from backend.app.schemas.dashboard import (
+    DashboardCounts,
+    DashboardRecentJobItem,
+    DashboardRecentVideoItem,
+    DashboardStorageSummary,
+    DashboardSummaryResponse,
+)
+from backend.app.schemas.system import SystemHardwareTelemetry, SystemHealthResponse, SystemInfoResponse
 
 # Track backend process start time for uptime calculation
 START_TIME = time.time()
@@ -240,3 +253,112 @@ async def set_setting(
     await session.commit()
     await session.refresh(setting_row)
     return {"key": setting_row.key, "value": setting_row.value}
+
+
+async def get_dashboard_summary(session: AsyncSession) -> DashboardSummaryResponse:
+    """Consolidates live entity counts, recent activities, storage, and hardware telemetry into a single payload."""
+    # 1. Aggregate entity counts via async SQLAlchemy
+    total_videos = (await session.execute(select(func.count(Video.id)))).scalar_one() or 0
+    total_clips = (await session.execute(select(func.count(Clip.id)))).scalar_one() or 0
+    active_jobs = (
+        await session.execute(
+            select(func.count(ProcessingJob.id)).where(ProcessingJob.status.in_(["QUEUED", "PROCESSING"]))
+        )
+    ).scalar_one() or 0
+    completed_exports = (
+        await session.execute(
+            select(func.count(ExportJob.id)).where(ExportJob.status == "COMPLETED")
+        )
+    ).scalar_one() or 0
+    total_transcripts = (await session.execute(select(func.count(Transcript.id)))).scalar_one() or 0
+    total_highlights = (await session.execute(select(func.count(Highlight.id)))).scalar_one() or 0
+    clipsly_storage_bytes = (
+        await session.execute(select(func.coalesce(func.sum(Video.file_size_bytes), 0)))
+    ).scalar_one() or 0
+
+    counts = DashboardCounts(
+        total_videos=total_videos,
+        total_clips=total_clips,
+        active_jobs=active_jobs,
+        completed_exports=completed_exports,
+        total_transcripts=total_transcripts,
+        total_highlights=total_highlights,
+    )
+
+    # 2. Local SSD Storage Diagnostics
+    storage_path = str(settings.STORAGE_DIR)
+    try:
+        usage = shutil.disk_usage(settings.STORAGE_DIR)
+        ssd_free_gb = round(usage.free / (1024**3), 2)
+        ssd_total_gb = round(usage.total / (1024**3), 2)
+    except Exception:
+        ssd_free_gb = 0.0
+        ssd_total_gb = 0.0
+
+    storage = DashboardStorageSummary(
+        ssd_free_gb=ssd_free_gb,
+        ssd_total_gb=ssd_total_gb,
+        clipsly_storage_bytes=clipsly_storage_bytes,
+        storage_path=storage_path,
+        is_critical=ssd_free_gb < settings.MIN_FREE_DISK_SPACE_GB,
+    )
+
+    # 3. Hardware Telemetry & System Health
+    hardware = get_hardware_telemetry()
+    cuda_ok = check_cuda_available()
+    nvenc_ok = check_nvenc_available()
+    system_health = SystemHealthResponse(
+        status="healthy",
+        version=settings.VERSION,
+        database_connected=True,
+        cuda_available=cuda_ok,
+        nvenc_available=nvenc_ok,
+        active_jobs_count=active_jobs,
+        uptime_seconds=get_uptime_seconds(),
+    )
+
+    # 4. Recent Videos (ordered by creation date desc, max 5)
+    recent_videos_stmt = select(Video).order_by(Video.created_at.desc()).limit(5)
+    recent_videos_res = (await session.execute(recent_videos_stmt)).scalars().all()
+    recent_videos = [
+        DashboardRecentVideoItem(
+            id=v.id,
+            filename=v.filename,
+            original_filename=v.original_filename,
+            file_size_bytes=v.file_size_bytes,
+            duration_seconds=v.duration_seconds,
+            width=v.width,
+            height=v.height,
+            fps=v.fps,
+            status=v.status,
+            created_at=v.created_at.isoformat() if v.created_at else None,
+        )
+        for v in recent_videos_res
+    ]
+
+    # 5. Recent Jobs (ordered by creation date desc, max 5)
+    recent_jobs_stmt = select(ProcessingJob).order_by(ProcessingJob.created_at.desc()).limit(5)
+    recent_jobs_res = (await session.execute(recent_jobs_stmt)).scalars().all()
+    recent_jobs = [
+        DashboardRecentJobItem(
+            id=j.id,
+            video_id=j.video_id,
+            job_type=j.job_type,
+            status=j.status,
+            progress_percent=j.progress_percent,
+            current_step=j.current_step,
+            error_message=j.error_message,
+            created_at=j.created_at.isoformat() if j.created_at else None,
+            updated_at=j.updated_at.isoformat() if j.updated_at else None,
+        )
+        for j in recent_jobs_res
+    ]
+
+    return DashboardSummaryResponse(
+        counts=counts,
+        storage=storage,
+        hardware=hardware,
+        system=system_health,
+        recent_videos=recent_videos,
+        recent_jobs=recent_jobs,
+    )

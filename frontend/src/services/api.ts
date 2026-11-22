@@ -7,6 +7,7 @@
 import {
   ApiError,
   Clip,
+  DashboardSummary,
   ExportJob,
   Highlight,
   PaginatedResponse,
@@ -108,6 +109,8 @@ export const api = {
       request<Record<string, unknown>>("/system/info", { method: "GET", signal }),
     getHardware: (signal?: AbortSignal) =>
       request<SystemHardwareTelemetry>("/system/hardware", { method: "GET", signal }),
+    getDashboard: (signal?: AbortSignal) =>
+      request<DashboardSummary>("/system/dashboard", { method: "GET", signal }),
   },
 
   videos: {

@@ -45,17 +45,63 @@ function renderWithRouter(initialRoute = "/") {
 
 describe("Application Routing & Navigation", () => {
   beforeEach(() => {
-    global.fetch = vi.fn().mockResolvedValue({
-      ok: true,
-      json: async () => ({
-        status: "healthy",
-        version: "1.0.0",
-        database_connected: true,
-        cuda_available: true,
-        nvenc_available: true,
-        active_jobs_count: 0,
-        uptime_seconds: 120.0,
-      }),
+    global.fetch = vi.fn().mockImplementation(async (url: string) => {
+      if (url.includes("/api/v1/system/dashboard")) {
+        return {
+          ok: true,
+          json: async () => ({
+            counts: {
+              total_videos: 0,
+              total_clips: 0,
+              active_jobs: 0,
+              completed_exports: 0,
+              total_transcripts: 0,
+              total_highlights: 0,
+            },
+            storage: {
+              ssd_free_gb: 250.5,
+              ssd_total_gb: 512.0,
+              clipsly_storage_bytes: 0,
+              storage_path: "data/videos",
+              is_critical: false,
+            },
+            hardware: {
+              gpu_vram_used_mb: 850,
+              gpu_vram_total_mb: 4096,
+              gpu_vram_free_mb: 3246,
+              gpu_utilization_percent: 12,
+              cpu_load_percent: 25,
+              system_ram_used_gb: 7.2,
+              system_ram_total_gb: 16.0,
+              ssd_free_space_gb: 250.5,
+            },
+            system: {
+              status: "healthy",
+              version: "1.0.0",
+              database_connected: true,
+              cuda_available: true,
+              nvenc_available: true,
+              active_jobs_count: 0,
+              uptime_seconds: 120.0,
+            },
+            recent_videos: [],
+            recent_jobs: [],
+          }),
+        };
+      }
+
+      return {
+        ok: true,
+        json: async () => ({
+          status: "healthy",
+          version: "1.0.0",
+          database_connected: true,
+          cuda_available: true,
+          nvenc_available: true,
+          active_jobs_count: 0,
+          uptime_seconds: 120.0,
+        }),
+      };
     });
   });
 

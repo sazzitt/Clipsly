@@ -171,6 +171,77 @@ Every non-2xx HTTP response adheres strictly to this format:
   ```
 - **Response Status:** `200 OK`.
 
+### 4.6 `GET /api/v1/system/dashboard`
+- **Purpose:** Consolidated workstation dashboard telemetry aggregating real entity counts, storage diagnostics, hardware telemetry, recent 5 videos, and recent 5 background jobs in a single roundtrip.
+- **Request Parameters:** None.
+- **Response Status:** `200 OK`.
+- **Response Schema (`DashboardSummaryResponse`):**
+  ```json
+  {
+    "counts": {
+      "total_videos": 3,
+      "total_clips": 8,
+      "active_jobs": 1,
+      "completed_exports": 5,
+      "total_transcripts": 3,
+      "total_highlights": 12
+    },
+    "storage": {
+      "ssd_free_gb": 215.4,
+      "ssd_total_gb": 512.0,
+      "clipsly_storage_bytes": 145000000,
+      "storage_path": "C:\\Clipsly\\data\\videos",
+      "is_critical": false
+    },
+    "hardware": {
+      "gpu_vram_used_mb": 1850,
+      "gpu_vram_total_mb": 4096,
+      "gpu_vram_free_mb": 2246,
+      "gpu_utilization_percent": 42,
+      "cpu_load_percent": 34,
+      "system_ram_used_gb": 8.5,
+      "system_ram_total_gb": 16.0,
+      "ssd_free_space_gb": 215.4
+    },
+    "system": {
+      "status": "healthy",
+      "version": "1.0.0",
+      "database_connected": true,
+      "cuda_available": true,
+      "nvenc_available": true,
+      "active_jobs_count": 1,
+      "uptime_seconds": 420.5
+    },
+    "recent_videos": [
+      {
+        "id": "vid-1",
+        "filename": "podcast_ep12.mp4",
+        "original_filename": "Tech Podcast Episode 12.mp4",
+        "file_size_bytes": 84000000,
+        "duration_seconds": 1245.0,
+        "width": 1920,
+        "height": 1080,
+        "fps": 30.0,
+        "status": "ready",
+        "created_at": "2026-11-22T10:00:00Z"
+      }
+    ],
+    "recent_jobs": [
+      {
+        "id": "job-101",
+        "video_id": "vid-2",
+        "job_type": "WHISPER_TRANSCRIPTION",
+        "status": "PROCESSING",
+        "progress_percent": 65,
+        "current_step": "Transcribing audio chunks...",
+        "error_message": null,
+        "created_at": "2026-11-22T11:32:00Z",
+        "updated_at": "2026-11-22T11:32:45Z"
+      }
+    ]
+  }
+  ```
+
 ---
 
 ## 5. Module B: Videos & Media Streaming

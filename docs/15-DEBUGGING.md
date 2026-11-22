@@ -134,6 +134,19 @@ Due to the complex interactions between Windows 11 host environments, NVIDIA GPU
 - **Resolution Playbook:**
   1. Declare as a type alias instead: `export type KbdProps = React.HTMLAttributes<HTMLElement>;`.
 
+### 2.17 High Frontend Network Overhead from Multiple Polling Telemetry Requests
+- **Symptom:** Workstation dashboard initial load triggered 5+ individual HTTP requests (`/health`, `/hardware`, `/videos`, `/jobs`, `/settings`), leading to request waterfall delays and redundant roundtrips.
+- **Root Cause:** Decentralized endpoints requiring the client to stitch together high-level telemetry and entity counters.
+- **Resolution Playbook:**
+  1. Consolidate workstation overview data into `GET /api/v1/system/dashboard`.
+  2. Aggregate entity counts, storage diagnostics, hardware telemetry, and top 5 recent videos/jobs inside a single async SQLAlchemy session with sub-15ms execution time under SQLite WAL.
+
+### 2.18 Ambiguous Testing-Library DOM Matchers When Workstation Components Reuse Status Badges
+- **Symptom:** Vitest error: `TestingLibraryElementError: Found multiple elements with the text: Processing` (or `42%`, `0`).
+- **Root Cause:** Workstation cards and list items share badge strings and numerical progress values (e.g., video status badge and background job status badge both rendering "Processing").
+- **Resolution Playbook:**
+  1. Use `screen.getAllByText(...)` with assertions on element count (`expect(screen.getAllByText("Processing").length).toBeGreaterThanOrEqual(1)`) or scope queries to specific container elements (`within(container).getByText(...)`).
+
 ---
 
 ## 3. Automated Diagnostics Scripts (Planned for Phase 18)

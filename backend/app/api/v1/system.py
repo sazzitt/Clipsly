@@ -4,6 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from backend.app.api.dependencies import get_database
 from backend.app.core.config import settings
 from backend.app.core.database import check_db_connection
+from backend.app.schemas.dashboard import DashboardSummaryResponse
 from backend.app.schemas.system import (
     SettingUpdateRequest,
     SettingsListResponse,
@@ -15,6 +16,7 @@ from backend.app.services.system import (
     check_cuda_available,
     check_nvenc_available,
     get_all_settings,
+    get_dashboard_summary,
     get_hardware_telemetry,
     get_system_info,
     get_uptime_seconds,
@@ -108,3 +110,17 @@ async def update_application_setting(
         description=payload.description
     )
     return {"success": True, "setting": res}
+
+
+@router.get(
+    "/dashboard",
+    response_model=DashboardSummaryResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Workstation Dashboard Summary",
+    description="Consolidated operational summary returning live counts, hardware telemetry, storage diagnostics, recent videos, and recent jobs."
+)
+async def get_system_dashboard_summary(
+    db: AsyncSession = Depends(get_database)
+) -> DashboardSummaryResponse:
+    """Returns consolidated live dashboard summary data."""
+    return await get_dashboard_summary(db)

@@ -162,3 +162,55 @@ export interface ExportJob {
   created_at: string;
   completed_at?: string | null;
 }
+
+export interface DashboardCounts {
+  total_videos: number;
+  total_clips: number;
+  active_jobs: number;
+  completed_exports: number;
+  total_transcripts: number;
+  total_highlights: number;
+}
+
+export interface DashboardStorageSummary {
+  ssd_free_gb: number;
+  ssd_total_gb: number;
+  clipsly_storage_bytes: number;
+  storage_path: string;
+  is_critical: boolean;
+}
+
+export interface DashboardRecentVideoItem {
+  id: string;
+  filename: string;
+  original_filename: string;
+  file_size_bytes: number;
+  duration_seconds: number;
+  width: number;
+  height: number;
+  fps: number;
+  status: string;
+  created_at?: string | null;
+}
+
+export interface DashboardRecentJobItem {
+  id: string;
+  video_id: string;
+  job_type: string;
+  status: string;
+  progress_percent: number;
+  current_step: string;
+  error_message?: string | null;
+  created_at?: string | null;
+  updated_at?: string | null;
+}
+
+export interface DashboardSummary {
+  counts: DashboardCounts;
+  storage: DashboardStorageSummary;
+  hardware: SystemHardwareTelemetry;
+  system: SystemHealth;
+  recent_videos: DashboardRecentVideoItem[];
+  recent_jobs: DashboardRecentJobItem[];
+}
+
