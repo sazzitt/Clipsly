@@ -589,15 +589,18 @@ The backend implements an automated, non-blocking backup utility leveraging the 
 
 ## 11. Current Status & Next Steps
 
-- **Status:** **PHASE 11 COMPLETED & VERIFIED.**
+- **Status:** **PHASE 12 COMPLETED & VERIFIED.**
 - **Implementation Highlights:**
   - Complete declarative ORM definitions for all 8 entities in `backend/app/models/`.
   - Full relationship mapping with cascading deletion rules on parent models (`Video`, `Clip`).
   - SQLite WAL mode and foreign key constraints enforced on every connection checkout.
-  - Phase 11 Project Management System:
-    - `Video` deletion cascades SQLite foreign keys for child `processing_jobs`, `transcripts`, `highlights`, `clips`, and `export_jobs`.
-    - Implemented `purge_files=true|false` parameter on `DELETE /api/v1/videos/{video_id}` adhering strictly to ADR-008: source files are safely unlinked only when requested, while rendered MP4 exports in `storage/exports/` are preserved unless explicitly purged by the user.
-    - Implemented `delete_file=true|false` parameter on `DELETE /api/v1/exports/{export_id}` to optionally delete exported MP4 media files from SSD alongside database record cleanup.
-    - Added eager joining and pre-aggregation in management routes to prevent `MissingGreenlet` exceptions during async SQLite querying.
-  - Comprehensive model lifecycle, constraint, and cascade deletion tests passing in `backend/tests/test_models.py` and `backend/tests/test_management_api.py`.
-- **Immediate Next Step:** Proceed to **Phase 12 (Local Video Upload & Ingestion Pipeline)** upon user approval.
+  - Phase 11 Project Management System: cascade deletion and safe SSD media purge flags.
+  - Phase 12 Local Video Upload & Ingestion Pipeline:
+    - Bounded streaming ingestion (1MB chunk buffers) into temporary scratch storage (`storage/temp/upload_{uuid}.tmp`).
+    - FFprobe container and stream validation (verifying video codec, audio codec, dimensions, framerate, duration bounds).
+    - Atomic file relocation: temporary scratch file moved to final destination (`storage/uploads/{video_id}.{ext}`) with strict path containment checks.
+    - Database registration: `Video` record inserted with `status='READY'`, original filename preserved, and technical metadata populated.
+    - Zero orphaned files: automated cleanup unlinks temporary scratch files upon failure, cancellation, or database rollback.
+    - Duplicate upload policy: uploads with matching original filenames receive distinct UUID storage filenames and independent database records.
+  - 42 backend pytest tests passing (100%) and 73 frontend Vitest tests passing (100%).
+- **Immediate Next Step:** Proceed to **Phase 13 (Audio Extraction & Media Metadata Pipeline)** upon user approval.

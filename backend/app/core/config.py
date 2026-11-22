@@ -42,7 +42,12 @@ class Settings(BaseSettings):
     DATABASE_URL: str = f"sqlite+aiosqlite:///{PROJECT_ROOT / 'data' / 'clipsly.db'}"
 
     # Request limits & timeouts
-    MAX_UPLOAD_SIZE_BYTES: int = 4 * 1024 * 1024 * 1024  # 4GB max file size
+    MAX_UPLOAD_SIZE_BYTES: int = 10 * 1024 * 1024 * 1024  # 10GB max file size
+    MIN_VIDEO_DURATION_SECONDS: float = 300.0  # 5 minutes
+    MAX_VIDEO_DURATION_SECONDS: float = 7200.0  # 120 minutes
+    ENFORCE_DURATION_LIMITS: bool = True
+    ALLOWED_VIDEO_EXTENSIONS: list[str] = [".mp4", ".mkv", ".mov", ".webm"]
+    UPLOAD_CHUNK_SIZE_BYTES: int = 1024 * 1024  # 1MB buffer
     API_TIMEOUT_SECONDS: int = 30
     LOG_LEVEL: str = "INFO"
 
@@ -68,6 +73,10 @@ class Settings(BaseSettings):
     def CACHE_DIR(self) -> Path:
         return self.STORAGE_DIR / "cache"
 
+    @property
+    def TEMP_DIR(self) -> Path:
+        return self.STORAGE_DIR / "temp"
+
     def model_post_init(self, __context) -> None:
         """Ensures that all local filesystem storage directories exist."""
         self.DATA_DIR.mkdir(parents=True, exist_ok=True)
@@ -76,6 +85,7 @@ class Settings(BaseSettings):
         self.UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
         self.EXPORT_DIR.mkdir(parents=True, exist_ok=True)
         self.CACHE_DIR.mkdir(parents=True, exist_ok=True)
+        self.TEMP_DIR.mkdir(parents=True, exist_ok=True)
 
 
 settings = Settings()

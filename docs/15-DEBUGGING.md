@@ -161,6 +161,21 @@ Due to the complex interactions between Windows 11 host environments, NVIDIA GPU
 - **Resolution Playbook:**
   1. Use `screen.getAllByText("Ready").length >= 1` or query the badge specifically via container scoping `within(container).getByText("Ready")`.
 
+### 2.21 Missing `python-multipart` Dependency for FastAPI Form/File Uploads
+- **Symptom:** FastAPI fails at startup or when receiving a multipart upload with: `RuntimeError: Form data requires "python-multipart" to be installed. Run "pip install python-multipart"`.
+- **Root Cause:** FastAPI relies on Starlette's `formparser.py`, which lazily imports `python-multipart` when parsing `multipart/form-data` request payloads in endpoints using `UploadFile = File(...)`.
+- **Resolution Playbook:**
+  1. Add `python-multipart>=0.0.9` directly to `backend/requirements.txt`.
+  2. Install via pip in the active virtual environment: `pip install "python-multipart>=0.0.9"`.
+  3. Ensure all CI/CD and deployment installation scripts include `python-multipart`.
+
+### 2.22 Duplicate Text Matcher Collisions Between Toast Notifications and Card Error Banners
+- **Symptom:** Vitest error: `TestingLibraryElementError: Found multiple elements with the text: Unsupported format '.pdf'` or similar error messages.
+- **Root Cause:** When an error occurs (such as client-side or server-side upload validation failure), the application emits both an ephemeral Toast notification (`toast.error(...)`) and an inline actionable error card (`Card variant="error"` or error banner). Both components render the identical error string simultaneously in the test DOM.
+- **Resolution Playbook:**
+  1. In unit tests asserting error visibility, use `screen.getAllByText(...)` and assert that at least one instance appears: `expect(screen.getAllByText(/Unsupported format/i).length).toBeGreaterThanOrEqual(1)`.
+  2. Alternatively, query by accessible role or container: `within(screen.getByRole("alert")).getByText(...)`.
+
 ---
 
 ## 3. Automated Diagnostics Scripts (Planned for Phase 18)
@@ -184,6 +199,7 @@ During Phase 18 through 20, this document will be expanded to include:
 
 ## 5. Current Status & Next Steps
 
-- **Status:** ACTIVE & EXPANDED (Phase 06, 07, 08, 09, 10, 11 playbooks documented).
-- **Immediate Dependency:** Phase 12 Local Video Upload & Ingestion Pipeline.
+- **Status:** ACTIVE & EXPANDED (Phase 06, 07, 08, 09, 10, 11, 12 playbooks documented).
+- **Phase 12 Ingestion Status:** Complete & Verified (streaming upload, ffprobe integrity checks, path containment, atomic storage).
+- **Immediate Dependency:** Phase 13 Audio Extraction & Preprocessing Pipeline.
 - **Execution Target:** Phase 18 through Phase 20 for full automation.

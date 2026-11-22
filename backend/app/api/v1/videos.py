@@ -1,30 +1,54 @@
 import os
 from typing import Any, Dict, Optional
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, File, Query, UploadFile, status
 from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.app.api.dependencies import get_database
-from backend.app.core.exceptions import NotFoundError, NotImplementedFeatureError
+from backend.app.core.exceptions import NotFoundError
 from backend.app.models.clip import Clip
 from backend.app.models.highlight import Highlight
 from backend.app.models.processing_job import ProcessingJob
 from backend.app.models.transcript import Transcript
 from backend.app.models.video import Video
 from backend.app.schemas.common import PaginatedResponse
+from backend.app.schemas.video import VideoUploadResponse
+from backend.app.services.video_ingestion import ingest_video
 
 router = APIRouter(prefix="/videos", tags=["Videos"])
 
 
 @router.post(
     "/upload",
-    status_code=status.HTTP_501_NOT_IMPLEMENTED,
+    response_model=VideoUploadResponse,
+    status_code=status.HTTP_201_CREATED,
     summary="Upload Video File",
-    description="Video file upload and ingestion pipeline (activates in Phase 12)."
+    description="Streamingly ingests and validates an uploaded video file to local SSD storage."
 )
-async def upload_video():
-    """Placeholder endpoint for video file upload. Activates in Phase 12."""
-    raise NotImplementedFeatureError("Video upload and chunked file ingestion pipeline will be activated in Phase 12.")
+async def upload_video(
+    file: UploadFile = File(...),
+    db: AsyncSession = Depends(get_database)
+):
+    """Handles multipart video file upload, chunked streaming, validation, and registration."""
+    video = await ingest_video(upload_file=file, db=db)
+    return VideoUploadResponse(
+        id=video.id,
+        filename=video.filename,
+        original_filename=video.original_filename,
+        file_size_bytes=video.file_size_bytes,
+        duration_seconds=video.duration_seconds,
+        width=video.width,
+        height=video.height,
+        aspect_ratio=video.aspect_ratio,
+        fps=video.fps,
+        video_codec=video.video_codec,
+        audio_codec=video.audio_codec,
+        audio_sample_rate=video.audio_sample_rate,
+        audio_channels=video.audio_channels,
+        status=video.status,
+        created_at=video.created_at.isoformat() if video.created_at else "",
+        file_path=video.file_path,
+    )
 
 
 @router.get(

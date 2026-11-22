@@ -65,6 +65,26 @@ class InsufficientStorageError(AppException):
         )
 
 
+class InvalidFileFormatError(AppException):
+    def __init__(self, detail: str = "Uploaded file format is invalid, corrupted, or unsupported.", details: Optional[Any] = None):
+        super().__init__(
+            status_code=400,
+            detail=detail,
+            error_code="INVALID_FILE_FORMAT",
+            details=details
+        )
+
+
+class FileTooLargeError(AppException):
+    def __init__(self, detail: str = "Uploaded file exceeds maximum allowed file size.", details: Optional[Any] = None):
+        super().__init__(
+            status_code=413,
+            detail=detail,
+            error_code="FILE_TOO_LARGE",
+            details=details
+        )
+
+
 class NotImplementedFeatureError(AppException):
     def __init__(self, detail: str = "This feature is planned for activation in a subsequent phase."):
         super().__init__(

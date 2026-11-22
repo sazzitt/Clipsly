@@ -64,6 +64,12 @@ Because this is a personal desktop application operating on a secure local lapto
 - Adding login barriers to a local tool adds friction without meaningful security value.
 - Security relies on OS-level user account isolation.
 
+### 3.5 Upload Streaming Security & Scratch Space Isolation (Phase 12)
+- **Bounded Buffer Streaming:** Incoming multipart payloads stream in discrete 1MB chunks (`UploadFile.read(1024 * 1024)`), enforcing a strict 10GB ceiling and avoiding RAM exhaustion on the 16GB laptop.
+- **Path Confinement Verification:** Before relocating scratch files to `storage/uploads/`, the backend resolves the path using Python `Path.resolve()` and explicitly validates `resolved_path.is_relative_to(settings.STORAGE_DIR.resolve())`. Any traversal deviation aborts with a security exception.
+- **Incremental SHA-256 Checksum:** Calculated on the fly during streaming without re-reading the multi-gigabyte file from disk.
+- **Deterministic Cleanup:** All scratch files in `storage/temp/` are unlinked in a `try...finally` block upon error, timeout, or client disconnect, preventing disk clutter.
+
 ---
 
 ## 4. Planned Sections for Phase 04 Specification
@@ -77,6 +83,5 @@ During Phase 04, this document will be expanded to include:
 
 ## 5. Current Status & Next Steps
 
-- **Status:** PLANNED.
-- **Immediate Dependency:** System Architecture (Phase 02).
-- **Execution Target:** Phase 04.
+- **Status:** ACTIVE & VERIFIED (Phase 12 Ingestion Security Implemented).
+- **Immediate Dependency:** Phase 13 Audio Extraction & Media Metadata Pipeline.

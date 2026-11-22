@@ -264,3 +264,16 @@ export interface DashboardSummary {
   recent_jobs: DashboardRecentJobItem[];
 }
 
+export interface UploadProgress {
+  loaded: number;
+  total: number;
+  percentage: number;
+  speedBytesPerSec: number;
+  remainingSeconds: number | null;
+}
+
+export interface UploadOptions {
+  onProgress?: (progress: UploadProgress) => void;
+  signal?: AbortSignal;
+}
+

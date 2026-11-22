@@ -15,12 +15,11 @@ async def test_videos_endpoints(async_client: AsyncClient):
     assert "items" in data
     assert "total" in data
 
-    # Upload video returns 501 Not Implemented
+    # Upload video without file payload returns 422 validation error
     res = await async_client.post("/api/v1/videos/upload")
-    assert res.status_code == 501
+    assert res.status_code == 422
     err = res.json()
-    assert err["error_code"] == "NOT_IMPLEMENTED"
-    assert "Phase 12" in err["detail"]
+    assert err["error_code"] == "VALIDATION_ERROR"
 
     # Nonexistent video returns 404
     nonexistent = str(uuid.uuid4())

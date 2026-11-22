@@ -434,7 +434,103 @@ backend/tests/test_system_api.py::test_system_settings_get_and_patch PASSED [100
 
 ---
 
-## 11. Planned Sections for Phase 19 Specification
+## 11. Phase 12 Local Video Upload & Ingestion Pipeline Test Run Results
+
+The following test suites and quality gates were executed and passed for Phase 12:
+
+### 11.1 Frontend Vitest Suite (`npm test`)
+```
+ RUN  v5.1.1 Clipsly/frontend
+
+ ✓ src/test/api.test.ts (3 tests) 24ms
+ ✓ src/test/health.test.tsx (3 tests) 264ms
+ ✓ src/test/ui.test.tsx (7 tests) 477ms
+ ✓ src/test/design-system.test.tsx (18 tests) 583ms
+ ✓ src/test/workstation-components.test.tsx (13 tests) 647ms
+ ✓ src/test/upload.test.tsx (9 tests) 1074ms
+ ✓ src/test/navigation.test.tsx (8 tests) 1230ms
+ ✓ src/test/dashboard.test.tsx (5 tests) 1501ms
+ ✓ src/test/management.test.tsx (7 tests) 1555ms
+
+ Test Files  9 passed (9)
+      Tests  73 passed (73)
+   Duration  9.91s
+```
+- **Tests Passing:** 73/73.
+- **Coverage Areas:**
+  - `UploadPage`: Idle dropzone rendering with specifications and format tags, file selection with metadata preview, client-side format rejection (`.pdf`), client-side empty file rejection (`0 bytes`), client-side oversized file rejection (>10 GB), real upload progress streaming simulation, completion summary rendering with navigation buttons, backend validation error handling with retry trigger, cancellation handling with cleanup notification, and keyboard accessible file browse via Enter key.
+
+### 11.2 Backend Pytest Suite (`pytest backend/tests`)
+```
+============================= test session starts =============================
+platform win32 -- Python 3.14.3, pytest-9.2.0, pluggy-1.7.0
+plugins: anyio-4.16.0, asyncio-1.5.0
+collected 42 items
+
+backend/tests/test_api_v1_endpoints.py::test_videos_endpoints PASSED     [  2%]
+backend/tests/test_api_v1_endpoints.py::test_jobs_endpoints PASSED       [  4%]
+backend/tests/test_api_v1_endpoints.py::test_transcripts_endpoints PASSED [  7%]
+backend/tests/test_api_v1_endpoints.py::test_highlights_endpoints PASSED [  9%]
+backend/tests/test_api_v1_endpoints.py::test_clips_lifecycle PASSED      [ 11%]
+backend/tests/test_api_v1_endpoints.py::test_exports_endpoints PASSED    [ 14%]
+backend/tests/test_config.py::test_settings_defaults PASSED              [ 16%]
+backend/tests/test_config.py::test_directory_paths_exist PASSED          [ 19%]
+backend/tests/test_config.py::test_cors_origins_contain_local_vite PASSED [ 21%]
+backend/tests/test_dashboard_api.py::test_dashboard_summary_empty_database PASSED [ 23%]
+backend/tests/test_dashboard_api.py::test_dashboard_summary_with_entities PASSED [ 26%]
+backend/tests/test_database.py::test_check_db_connection PASSED          [ 28%]
+backend/tests/test_database.py::test_sqlite_pragmas PASSED               [ 30%]
+backend/tests/test_error_handling.py::test_not_found_error_envelope PASSED [ 33%]
+backend/tests/test_error_handling.py::test_validation_error_envelope PASSED [ 35%]
+backend/tests/test_error_handling.py::test_not_implemented_error_envelope PASSED [ 38%]
+backend/tests/test_health.py::test_root_endpoint PASSED                  [ 40%]
+backend/tests/test_health.py::test_system_health_endpoint PASSED         [ 42%]
+backend/tests/test_management_api.py::test_video_filtering_and_search PASSED [ 45%]
+backend/tests/test_management_api.py::test_video_details_with_counts PASSED [ 47%]
+backend/tests/test_management_api.py::test_video_delete_cascades_children PASSED [ 50%]
+backend/tests/test_management_api.py::test_jobs_filtering_and_cancel PASSED [ 52%]
+backend/tests/test_management_api.py::test_exports_management_and_delete PASSED [ 54%]
+backend/tests/test_middleware.py::test_correlation_id_generated PASSED   [ 57%]
+backend/tests/test_middleware.py::test_correlation_id_propagated PASSED  [ 59%]
+backend/tests/test_middleware.py::test_request_timing_header PASSED      [ 61%]
+backend/tests/test_middleware.py::test_localhost_security_blocks_external_host PASSED [ 64%]
+backend/tests/test_models.py::test_models_lifecycle_and_relationships PASSED [ 66%]
+backend/tests/test_system_api.py::test_system_info_endpoint PASSED       [ 69%]
+backend/tests/test_system_api.py::test_system_hardware_endpoint PASSED   [ 71%]
+backend/tests/test_system_api.py::test_system_settings_get_and_patch PASSED [ 73%]
+backend/tests/test_upload_api.py::test_upload_valid_mp4 PASSED           [ 76%]
+backend/tests/test_upload_api.py::test_upload_valid_mkv PASSED           [ 78%]
+backend/tests/test_upload_api.py::test_upload_valid_webm PASSED          [ 80%]
+backend/tests/test_upload_api.py::test_upload_unsupported_extension PASSED [ 83%]
+backend/tests/test_upload_api.py::test_upload_empty_file PASSED          [ 85%]
+backend/tests/test_upload_api.py::test_upload_exceeds_max_size PASSED    [ 88%]
+backend/tests/test_upload_api.py::test_upload_corrupt_video PASSED       [ 90%]
+backend/tests/test_upload_api.py::test_upload_no_video_stream PASSED     [ 92%]
+backend/tests/test_upload_api.py::test_upload_low_disk_space_rejection PASSED [ 95%]
+backend/tests/test_upload_api.py::test_upload_duration_limits_enforced PASSED [ 97%]
+backend/tests/test_upload_api.py::test_duplicate_filename_preserves_unique_records PASSED [100%]
+
+============================= 42 passed in 3.21s ==============================
+```
+- **Tests Passing:** 42/42.
+- **Coverage Areas:** Multipart streaming upload, valid MP4/MKV/WebM container inspection with FFprobe, extension rejection, empty file rejection, 10GB size limit streaming enforcement, corrupt video rejection, missing video stream rejection, low SSD disk space rejection (507 Insufficient Storage), minimum duration enforcement ($5\text{m}$ bounds), and duplicate filename handling.
+
+### 11.3 Real Ingestion Verification
+- Real MP4 video fixture generated on-the-fly and ingested via `POST /api/v1/videos/upload`.
+- Measured throughput: uploaded, validated, and registered in **257.1 ms**.
+- Physical file verified on SSD at `storage/uploads/{uuid}.mp4` matching exact byte count.
+- Database record verified in SQLite WAL with status `READY`.
+- Verified in Video Library query (`GET /api/v1/videos`) and Video Details query (`GET /api/v1/videos/{id}`).
+- Successful cascaded deletion with `purge_files=true` verified.
+
+### 11.4 Code Quality, Typing, and Production Build
+- **ESLint:** `npm run lint` passed with 0 errors and 0 warnings.
+- **TypeScript:** Strict typecheck `tsc -b` passed with 0 errors.
+- **Vite Production Build:** `tsc -b && vite build` compiled 1671 modules and generated production bundle in 9.33s cleanly.
+
+---
+
+## 12. Planned Sections for Phase 19 Specification
 
 During Phase 19, this document will be expanded to include:
 - Complete automated test suite commands (`pytest --cov`, `pnpm test`).
@@ -443,8 +539,8 @@ During Phase 19, this document will be expanded to include:
 
 ---
 
-## 12. Current Status & Next Steps
+## 13. Current Status & Next Steps
 
-- **Status:** PHASE 11 COMPLETED & VERIFIED.
-- **Active Suites:** 31 backend pytest tests passing (100%), 64 frontend Vitest tests passing (100%), ESLint clean (0 errors, 0 warnings), TypeScript build clean.
-- **Next Phase:** Proceed to Phase 12 upon user approval.
+- **Status:** PHASE 12 COMPLETED & VERIFIED.
+- **Active Suites:** 42 backend pytest tests passing (100%), 73 frontend Vitest tests passing (100%), ESLint clean (0 errors, 0 warnings), TypeScript build clean.
+- **Next Phase:** Proceed to Phase 13 upon user approval.

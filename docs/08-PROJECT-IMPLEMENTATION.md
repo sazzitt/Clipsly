@@ -124,7 +124,7 @@ clipsly/
 
 ## 4. Current Status & Next Steps
 
-- **Status:** PHASE 11 COMPLETED & VERIFIED.
+- **Status:** PHASE 12 COMPLETED & VERIFIED.
 - **Frontend Architecture (Phase 07):** Clean modular directories, 11 routes, 12 UI primitives, typed API client, and 20 passing unit tests.
 - **Backend Architecture (Phase 08):** Centralized Pydantic Settings v2, structured rotating logging, standardized error envelopes, 3 middlewares (security, correlation, timing), 8 SQLAlchemy 2.0 Async ORM models, Alembic migrations, and 7 API v1 domain routers with 24 passing pytest tests.
 - **Design System & UI Components (Phase 09):**
@@ -137,13 +137,25 @@ clipsly/
   - **Modular UI Feature Architecture:** `frontend/src/features/dashboard/components/` with `DashboardHeader`, `DashboardMetrics`, `DashboardStorage`, `DashboardHardware`, `DashboardRecentVideos`, `DashboardRecentActivity`, `DashboardQuickActions`, and `DashboardSystemStatus`.
   - **Zero Fake Mock Data:** In an empty database, clean empty states are rendered (`EmptyVideoLibrary`, idle jobs card) with direct CTAs to `/upload`.
 - **Project Management System (Phase 11):**
-  - **Management Interfaces:**
-    - **Video Library (`/videos`):** Substring search by filename/original filename, status filtering (`ALL`, `UPLOADED`, `PROCESSING`, `READY`, `FAILED`), allowlisted sorting (`created_at`, `duration_seconds`, `filename`, `file_size_bytes`), 12-item pagination, stream metadata badges, and safe cascade deletion modal.
-    - **Video Details (`/video/:id`):** Header breadcrumbs, formatted duration/size, real-time SSD file verification, 6-card stream characteristics grid (video/audio codecs, resolution, fps, sample rate, channels), and 5-tab sub-navigation (Overview with quick actions and child entity counts, Processing History with live steps, Generated Transcript with language/word count, Highlight Candidates, and Created Clips).
-    - **Processing Jobs Queue (`/jobs`):** Queue inspection with type filter (`INGESTION`, `AUDIO_EXTRACTION`, `WHISPER_TRANSCRIPTION`, `HIGHLIGHT_SCORING`, `CLIP_GENERATION`, `EXPORT_RENDERING`), status filter, search, progress bars, error logs, and safe job cancellation modal with 409 conflict handling. Added to primary workstation navigation sidebar.
-    - **Clips Library (`/clips`):** Grid of configured video clips with aspect ratio mode badges (`BLUR_PAD`, `CROP_9_16`), subtitle style indicators, start/end boundaries, source video navigation, direct Studio launcher, and clip deletion modal.
-    - **Export Records (`/exports`):** Production exports overview with resolution tags, hardware encoder badge (`h264_nvenc`), render time, file size, real-time SSD verification badge, and record deletion modal with optional disk purge.
-  - **Reusable Management Components:** `frontend/src/components/management/` (`SearchInput`, `FilterSelect`, `SortSelector`, `PaginationControls`, `DeleteConfirmationDialog`, `NoResultsState`, `EntityStatusBadge`).
-  - **Backend API Enhancements:** Server-side search, status filters, dynamic allowlisted sorting, pagination, child entity counts in `get_video`, task cancellation in `cancel_job`, `delete_video` with `purge_files`, and `delete_export` with `delete_file`.
-  - **Quality Gates:** 31 backend pytest tests passing (100%); 64 frontend Vitest tests passing across 8 test suites; ESLint clean (0 errors, 0 warnings); TypeScript strict check clean (`tsc -b`); Vite production build clean (`dist/index.html` built in 9.8s).
-- **Execution Target:** Local Video Upload & Ingestion Pipeline begins in **Phase 12**.
+  - **Management Interfaces:** Video Library (`/videos`), Video Details (`/video/:id`), Processing Jobs (`/jobs`), Clips Library (`/clips`), Export Records (`/exports`).
+  - **Reusable Components:** `frontend/src/components/management/` (`SearchInput`, `FilterSelect`, `SortSelector`, `PaginationControls`, `DeleteConfirmationDialog`, `NoResultsState`, `EntityStatusBadge`).
+  - **Cascade Management:** SQLite foreign key cascade with optional SSD source file purge, preserving rendered MP4 exports according to ADR-008.
+- **Local Video Upload & Ingestion Pipeline (Phase 12):**
+  - **Ingestion Engine:**
+    - Asynchronous chunked streaming upload (`POST /api/v1/videos/upload`) with 1MB bounded buffer, supporting files up to 10 GB without buffering into system RAM.
+    - SSD storage headroom pre-check ($\ge 10\text{ GB}$ required) raising 507 Insufficient Storage on low disk space.
+    - Real-time SHA256 checksum calculation and size accounting during stream consumption.
+    - Asynchronous subprocess FFprobe container validation (verifying valid video stream, audio speech stream, frame rate, resolution, duration bounds $5\text{m}-120\text{m}$).
+    - Atomic file relocation from scratch space (`storage/temp/upload_{uuid}.tmp`) to persistent store (`storage/uploads/{video_id}.{ext}`) with path confinement checks.
+    - Zero orphaned files: guaranteed cleanup of partial scratch files upon client cancellation, timeout, validation failure, or database rollback.
+    - Duplicate upload policy: identical original filenames are assigned unique UUIDs and stored independently.
+  - **Frontend Upload Experience (`/upload`):**
+    - Drag-and-drop dropzone with container badges (`MP4, MKV, MOV, WebM`), max size indicator (`10 GB`), duration guidance (`5 - 120 Min`).
+    - Client-side pre-validation (extension, size, empty file checks).
+    - Real-time progress bar reflecting actual network transmitted bytes via `XMLHttpRequest.upload.onprogress`.
+    - Accurately measured upload speed (`MB/s`) and moving-average time remaining calculation.
+    - Full client cancellation support via `AbortController`.
+    - Finalization spinner during FFprobe container validation.
+    - Success summary card with direct one-click navigation to Video Details (`/video/:id`) and Video Library (`/videos`).
+  - **Quality Gates:** 42 backend pytest tests passing (100%); 73 frontend Vitest tests passing (100%); ESLint clean (0 errors, 0 warnings); TypeScript strict check (`tsc -b`) clean; Vite production build clean (9.33s).
+- **Execution Target:** Audio Extraction & Media Metadata Pipeline begins in **Phase 13**.

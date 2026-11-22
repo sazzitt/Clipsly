@@ -81,12 +81,14 @@ Every feature follows a disciplined 5-stage lifecycle:
 
 ## 4. Operational Status & Next Steps
 
-- **Status:** ACTIVE (Phase 11 Complete).
+- **Status:** ACTIVE (Phase 12 Complete).
 - **Current Baseline:**
-  - Backend: 8 SQLAlchemy ORM models, Alembic migrations, 3 security and telemetry middlewares, 7 domain routers with server-side search, filtering, allowlisted sorting, pagination, and cascade management; 31 pytest tests passing in 1.86s.
-  - Frontend: Workstation design system, 17 UI primitives, 9 workstation modules, 7 management components (`SearchInput`, `FilterSelect`, `SortSelector`, `PaginationControls`, `DeleteConfirmationDialog`, `NoResultsState`, `EntityStatusBadge`), 5 complete management views (`/videos`, `/video/:id`, `/jobs`, `/clips`, `/exports`), and 64 Vitest tests passing in 9.27s.
-  - Code Quality: ESLint clean (0 errors, 0 warnings), TypeScript strict check (`tsc -b`) passing with 0 errors, Vite production build clean in 9.84s.
-- **Project Management System Architecture (Phase 11):**
-  - Standardized management controls across all entity views with debounce search inputs, status filter dropdowns, and URL/state synchronization.
-  - Safe cascade deletion dialogs requiring explicit user action, with strict protection of rendered MP4 exports on SSD according to ADR-008.
-- **Next Phase:** Phase 12 (Local Video Upload & Ingestion Pipeline).
+  - Backend: 8 SQLAlchemy ORM models, Alembic migrations, 3 security and telemetry middlewares, 7 domain routers with full video streaming upload, FFprobe validation, server-side search, filtering, allowlisted sorting, pagination, and cascade management; 42 pytest tests passing in 3.21s.
+  - Frontend: Workstation design system, 17 UI primitives, 9 workstation modules, 7 management components (`SearchInput`, `FilterSelect`, `SortSelector`, `PaginationControls`, `DeleteConfirmationDialog`, `NoResultsState`, `EntityStatusBadge`), 6 complete feature views (`/`, `/videos`, `/video/:id`, `/upload`, `/jobs`, `/clips`, `/exports`), and 73 Vitest tests passing in 9.91s.
+  - Code Quality: ESLint clean (0 errors, 0 warnings), TypeScript strict check (`tsc -b`) passing with 0 errors, Vite production build clean in 9.33s.
+- **Local Video Upload & Ingestion Pipeline Architecture (Phase 12):**
+  - Chunked streaming upload (`POST /api/v1/videos/upload`) with 1MB bounded buffer, preventing memory spikes for files up to 10 GB.
+  - Asynchronous FFprobe verification validating container structure, video stream presence, speech audio presence, dimensions, framerate, and duration bounds ($5\text{m}-120\text{m}$).
+  - Real-time network progress via `XMLHttpRequest.upload.onprogress` with true speed and remaining time calculations.
+  - Safe scratch space lifecycle: scratch files in `storage/temp/` atomically moved to `storage/uploads/` on success, or unlinked immediately on failure or cancellation.
+- **Next Phase:** Phase 13 (Audio Extraction & Media Metadata Pipeline).

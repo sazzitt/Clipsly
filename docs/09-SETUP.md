@@ -79,8 +79,11 @@ python -m venv .venv
 # Activate virtual environment
 .\.venv\Scripts\Activate.ps1
 
-# Install backend dependencies
+# Install backend dependencies (including FastAPI, SQLAlchemy, python-multipart, pytest)
 pip install -r backend/requirements.txt
+
+# Ensure FFmpeg/FFprobe is on system PATH (required for media validation)
+ffprobe -version
 
 # Apply latest database schema migrations
 alembic upgrade head

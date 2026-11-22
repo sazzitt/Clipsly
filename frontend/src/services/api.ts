@@ -16,6 +16,7 @@ import {
   SystemHardwareTelemetry,
   SystemHealth,
   Transcript,
+  UploadOptions,
   Video,
 } from "../types/api";
 
@@ -177,6 +178,71 @@ export const api = {
     },
     get: (id: string, signal?: AbortSignal) =>
       request<Video>(`/videos/${id}`, { method: "GET", signal }),
+    upload: (file: File, options: UploadOptions = {}): Promise<Video> => {
+      return new Promise((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        const startTime = Date.now();
+
+        if (options.signal) {
+          if (options.signal.aborted) {
+            return reject(new ClipslyApiError(499, "Upload cancelled by client", "CLIENT_CANCELLED"));
+          }
+          options.signal.addEventListener("abort", () => {
+            xhr.abort();
+            reject(new ClipslyApiError(499, "Upload cancelled by client", "CLIENT_CANCELLED"));
+          });
+        }
+
+        xhr.upload.onprogress = (event) => {
+          if (event.lengthComputable && options.onProgress) {
+            const now = Date.now();
+            const elapsedSec = (now - startTime) / 1000;
+            const currentSpeed = elapsedSec > 0 ? event.loaded / elapsedSec : 0;
+            const remainingBytes = event.total - event.loaded;
+            const remainingSeconds = currentSpeed > 0 ? Math.ceil(remainingBytes / currentSpeed) : null;
+
+            options.onProgress({
+              loaded: event.loaded,
+              total: event.total,
+              percentage: Math.min(100, Math.round((event.loaded / event.total) * 100)),
+              speedBytesPerSec: Math.round(currentSpeed),
+              remainingSeconds,
+            });
+          }
+        };
+
+        xhr.onload = () => {
+          let responseData: (Record<string, unknown> & { detail?: string; error?: { message?: string; code?: string }; error_code?: string }) | null = null;
+          try {
+            responseData = JSON.parse(xhr.responseText);
+          } catch {
+            responseData = null;
+          }
+
+          if (xhr.status >= 200 && xhr.status < 300) {
+            resolve((responseData as unknown) as Video);
+          } else {
+            const detail = responseData?.detail || responseData?.error?.message || xhr.statusText || "Upload failed";
+            const errorCode = responseData?.error_code || responseData?.error?.code;
+            reject(new ClipslyApiError(xhr.status, detail, errorCode));
+          }
+        };
+
+        xhr.onerror = () => {
+          reject(new ClipslyApiError(503, "Network error occurred during video upload", "NETWORK_ERROR"));
+        };
+
+        xhr.ontimeout = () => {
+          reject(new ClipslyApiError(408, "Video upload timed out", "TIMEOUT"));
+        };
+
+        const formData = new FormData();
+        formData.append("file", file);
+
+        xhr.open("POST", `${API_BASE_URL}/videos/upload`);
+        xhr.send(formData);
+      });
+    },
     delete: (id: string, purgeFiles = false, signal?: AbortSignal) =>
       request<{ success: boolean; id: string; file_unlinked?: boolean }>(
         `/videos/${id}?purge_files=${purgeFiles}`,
