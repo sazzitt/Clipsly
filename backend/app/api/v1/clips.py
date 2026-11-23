@@ -626,8 +626,10 @@ async def delete_clip(
     "/{clip_id}/subtitles.ass",
     status_code=status.HTTP_501_NOT_IMPLEMENTED,
     summary="Export Subtitles (ASS)",
-    description="Generates styled Advanced SubStation Alpha (.ass) subtitle file (activates in Phase 15)."
+    description="Generates styled Advanced SubStation Alpha (.ass) subtitle file (activates in Phase 18 — Subtitle & Caption Engine)."
 )
 async def get_clip_subtitles(clip_id: str):
     """Placeholder endpoint for ASS subtitle generation."""
-    raise NotImplementedFeatureError("ASS subtitle rendering engine activates in Phase 15.")
+    raise NotImplementedFeatureError(
+        "ASS subtitle generation is not implemented yet. This functionality belongs to Phase 18 — Subtitle & Caption Engine. The endpoint remains intentionally unavailable during Phase 17."
+    )

@@ -710,9 +710,22 @@ data: {"gpu_vram_used_mb":1120,"gpu_vram_free_mb":2976,"cpu_load":24.0}
 - **Response Status:** `204 No Content`.
 
 ### 9.6 `GET /api/v1/clips/{clip_id}/subtitles.ass`
-- **Purpose:** Downloads dynamically compiled ASS subtitle file for client-side preview rendering.
-- **Content-Type:** `text/x-ssa`.
-- **Response Status:** `200 OK`.
+- **Purpose:** Downloads dynamically compiled ASS subtitle file for client-side preview rendering. Activates in Phase 18 — Subtitle & Caption Engine.
+- **Current Status (Phase 17):** Not implemented yet. This endpoint intentionally returns `501 Not Implemented` during Phase 17. Subtitle generation belongs to Phase 18 — Subtitle & Caption Engine.
+- **Content-Type:** `application/json` (501 response); `text/x-ssa` (upon Phase 18 activation).
+- **Response Status:** `501 Not Implemented` (interim status until Phase 18 implementation).
+- **Response Schema (`501 Not Implemented`):**
+  ```json
+  {
+    "error_code": "NOT_IMPLEMENTED",
+    "detail": "ASS subtitle generation is not implemented yet. This functionality belongs to Phase 18 — Subtitle & Caption Engine. The endpoint remains intentionally unavailable during Phase 17.",
+    "error": {
+      "code": "NOT_IMPLEMENTED",
+      "message": "ASS subtitle generation is not implemented yet. This functionality belongs to Phase 18 — Subtitle & Caption Engine. The endpoint remains intentionally unavailable during Phase 17.",
+      "details": null
+    }
+  }
+  ```
 
 ---
 

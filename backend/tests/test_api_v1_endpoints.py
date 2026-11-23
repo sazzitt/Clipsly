@@ -140,7 +140,8 @@ async def test_clips_lifecycle(async_client: AsyncClient):
     # ASS subtitles returns 501
     res = await async_client.get(f"/api/v1/clips/{clip_id}/subtitles.ass")
     assert res.status_code == 501
-    assert "Phase 15" in res.json()["detail"]
+    assert "Phase 18" in res.json()["detail"]
+    assert "Phase 15" not in res.json()["detail"]
 
     # Delete Clip
     res = await async_client.delete(f"/api/v1/clips/{clip_id}")
