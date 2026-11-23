@@ -12,6 +12,8 @@ import {
   AudioStreamInfo,
   AvailableModelsResponse,
   Clip,
+  ClipGenerationRequest,
+  ClipGenerationResponse,
   DashboardSummary,
   ExportJob,
   Highlight,
@@ -398,6 +400,19 @@ export const api = {
     },
     get: (clipId: string, signal?: AbortSignal) =>
       request<Clip>(`/clips/${clipId}`, { method: "GET", signal }),
+    generate: (payload: ClipGenerationRequest, signal?: AbortSignal) =>
+      request<ClipGenerationResponse>("/clips/generate", {
+        method: "POST",
+        body: JSON.stringify(payload),
+        signal,
+      }),
+    cancel: (clipId: string, signal?: AbortSignal) =>
+      request<{ success: boolean; id: string; status: string }>(`/clips/${encodeURIComponent(clipId)}/cancel`, {
+        method: "POST",
+        signal,
+      }),
+    getStreamUrl: (clipId: string) => `${API_BASE_URL}/clips/${encodeURIComponent(clipId)}/stream`,
+    getDownloadUrl: (clipId: string) => `${API_BASE_URL}/clips/${encodeURIComponent(clipId)}/download`,
     delete: (clipId: string, signal?: AbortSignal) =>
       request<{ success: boolean; id: string }>(`/clips/${clipId}`, { method: "DELETE", signal }),
   },

@@ -23,6 +23,7 @@ import {
   HighlightDetectionPanel,
   HighlightEditDialog,
 } from "./components";
+import { GenerateClipModal } from "../clips/components/GenerateClipModal";
 
 export const HighlightsPage: React.FC = () => {
   const { id: videoId } = useParams<{ id: string }>();
@@ -35,6 +36,7 @@ export const HighlightsPage: React.FC = () => {
 
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [editingHighlight, setEditingHighlight] = useState<Highlight | null>(null);
+  const [selectedHighlightForClip, setSelectedHighlightForClip] = useState<Highlight | null>(null);
   const [isProcessingAction, setIsProcessingAction] = useState<boolean>(false);
 
   // Filters and Sorting
@@ -331,6 +333,7 @@ export const HighlightsPage: React.FC = () => {
                 onEdit={(h) => setEditingHighlight(h)}
                 onAccept={handleAccept}
                 onReject={handleReject}
+                onCreateClip={(h) => setSelectedHighlightForClip(h)}
                 isProcessingAction={isProcessingAction}
               />
             ))}
@@ -346,6 +349,21 @@ export const HighlightsPage: React.FC = () => {
         onSave={handleSaveEdit}
         videoDurationSeconds={video?.duration_seconds}
       />
+
+      {/* Generate 9:16 Clip Modal */}
+      {selectedHighlightForClip && (
+        <GenerateClipModal
+          isOpen={Boolean(selectedHighlightForClip)}
+          onClose={() => setSelectedHighlightForClip(null)}
+          videoId={videoId}
+          highlightId={selectedHighlightForClip.id}
+          initialTitle={selectedHighlightForClip.hook_sentence ? `Clip: ${selectedHighlightForClip.hook_sentence.slice(0, 40)}` : "Untitled Clip"}
+          initialStartMs={selectedHighlightForClip.start_ms ?? Math.round((selectedHighlightForClip.start_time || 0) * 1000)}
+          initialEndMs={selectedHighlightForClip.end_ms ?? Math.round((selectedHighlightForClip.end_time || 0) * 1000)}
+          videoTitle={video?.original_filename || video?.filename}
+          videoDurationSeconds={video?.duration_seconds}
+        />
+      )}
     </PageContainer>
   );
 };

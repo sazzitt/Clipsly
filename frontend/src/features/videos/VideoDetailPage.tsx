@@ -20,6 +20,8 @@ import {
   AlertTriangle,
   Compass,
   X,
+  Download,
+  Scissors,
 } from "lucide-react";
 import { PageContainer } from "../../components/layout/PageContainer";
 import { Card, CardHeader, CardTitle, CardContent } from "../../components/ui/card";
@@ -30,6 +32,7 @@ import { ProcessingStatus, JobStatus } from "../../components/workstation/Proces
 import { VideoPlayer } from "./components/VideoPlayer";
 import { TranscriptionPanel, TranscriptViewer } from "../transcripts/components";
 import { HighlightCard, HighlightDetectionPanel, HighlightEditDialog } from "../highlights/components";
+import { GenerateClipModal } from "../clips/components/GenerateClipModal";
 import { useToast } from "../../hooks/useToast";
 import { api, ClipslyApiError } from "../../services/api";
 import { Video, ProcessingJob, Transcript, Highlight, Clip, HighlightDetectionRequest } from "../../types/api";
@@ -99,6 +102,10 @@ export const VideoDetailPage: React.FC = () => {
   const [highlightStatusFilter, setHighlightStatusFilter] = useState<string>("ALL");
   const [highlightCategoryFilter, setHighlightCategoryFilter] = useState<string>("ALL");
   const [highlightSortBy, setHighlightSortBy] = useState<string>("rank");
+
+  // Clip generation state (Phase 17)
+  const [selectedHighlightForClip, setSelectedHighlightForClip] = useState<Highlight | null>(null);
+  const [showManualClipModal, setShowManualClipModal] = useState<boolean>(false);
 
   const loadVideoDetails = useCallback(async () => {
     if (!id) return;
@@ -1232,6 +1239,7 @@ export const VideoDetailPage: React.FC = () => {
                   onEdit={(hl) => setEditingHighlight(hl)}
                   onAccept={handleAcceptHighlight}
                   onReject={handleRejectHighlight}
+                  onCreateClip={(hl) => setSelectedHighlightForClip(hl)}
                 />
               ))}
             </div>
@@ -1249,34 +1257,127 @@ export const VideoDetailPage: React.FC = () => {
 
       {/* Tab 5: Clips */}
       {activeTab === "clips" && (
-        <div className="pt-2">
+        <div className="pt-2 space-y-4">
+          <div className="flex items-center justify-between pb-2 border-b border-border/50">
+            <div>
+              <h3 className="text-sm font-semibold text-foreground">Vertical 9:16 Clips</h3>
+              <p className="text-xs text-muted-foreground">
+                Configured and rendered short-form video assets sliced from this media.
+              </p>
+            </div>
+            <Button
+              size="sm"
+              onClick={() => setShowManualClipModal(true)}
+              className="gap-1.5 text-xs bg-primary text-primary-foreground hover:bg-primary/90"
+            >
+              <Scissors className="h-3.5 w-3.5" />
+              <span>New 9:16 Clip</span>
+            </Button>
+          </div>
+
           {clips.length === 0 ? (
-            <div className="rounded-xl border border-dashed border-border bg-card/30 p-8 text-center space-y-2">
+            <div className="rounded-xl border border-dashed border-border bg-card/30 p-8 text-center space-y-3">
               <Film className="h-6 w-6 text-muted-foreground mx-auto" />
               <h3 className="text-sm font-semibold text-foreground">No Saved Clips</h3>
               <p className="text-xs text-muted-foreground max-w-md mx-auto">
-                No short-form vertical or horizontal clips have been created from this video yet.
+                No short-form vertical clips have been created from this video yet. Accept a detected highlight or click "New 9:16 Clip" above to generate one.
               </p>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowManualClipModal(true)}
+                className="gap-1.5 text-xs mt-1"
+              >
+                <Scissors className="h-3.5 w-3.5" />
+                <span>Create First Clip</span>
+              </Button>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {clips.map((clip) => (
-                <div key={clip.id} className="p-4 rounded-xl border border-border bg-card space-y-2">
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="font-semibold text-foreground truncate">{clip.title}</span>
-                    <EntityStatusBadge status={clip.status} />
+                <div key={clip.id} className="p-4 rounded-xl border border-border bg-card flex flex-col justify-between space-y-3">
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between text-xs gap-2">
+                      <span className="font-semibold text-foreground truncate">{clip.title}</span>
+                      <EntityStatusBadge status={clip.status} />
+                    </div>
+
+                    <div className="text-[11px] font-mono text-muted-foreground flex items-center justify-between bg-secondary/30 px-2 py-1 rounded">
+                      <span>Timing:</span>
+                      <span className="text-foreground font-semibold">
+                        {formatDuration(clip.start_ms / 1000)} – {formatDuration(clip.end_ms / 1000)} ({(clip.duration_ms / 1000).toFixed(1)}s)
+                      </span>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                      <Badge variant="outline" className="text-[10px]">
+                        {clip.conversion_mode || clip.aspect_ratio_mode}
+                      </Badge>
+                      {clip.width && clip.height && (
+                        <Badge variant="secondary" className="text-[10px] font-mono">
+                          {clip.width}x{clip.height}
+                        </Badge>
+                      )}
+                      {clip.file_size_bytes && clip.file_size_bytes > 0 && (
+                        <span className="text-[10px] text-muted-foreground font-mono">
+                          {formatBytes(clip.file_size_bytes)}
+                        </span>
+                      )}
+                    </div>
                   </div>
-                  <div className="text-[11px] font-mono text-muted-foreground flex items-center justify-between">
-                    <span>Ratio: {clip.aspect_ratio_mode}</span>
-                    <span>
-                      {formatDuration(clip.start_ms / 1000)} - {formatDuration(clip.end_ms / 1000)}
-                    </span>
+
+                  <div className="pt-2 border-t border-border/40 flex items-center gap-2">
+                    <Button asChild variant="outline" size="sm" className="h-7 text-xs flex-1 gap-1">
+                      <Link to={`/studio/${clip.id}`}>
+                        <Scissors className="h-3 w-3" />
+                        <span>Open Studio</span>
+                      </Link>
+                    </Button>
+
+                    {clip.status === "COMPLETED" && (
+                      <Button asChild variant="ghost" size="iconSm" className="h-7 w-7 text-muted-foreground hover:text-primary" title="Download MP4">
+                        <a href={api.clips.getDownloadUrl(clip.id)} download>
+                          <Download className="h-3.5 w-3.5" />
+                        </a>
+                      </Button>
+                    )}
                   </div>
                 </div>
               ))}
             </div>
           )}
         </div>
+      )}
+
+      {/* Generate 9:16 Clip Modal from Highlight */}
+      {selectedHighlightForClip && (
+        <GenerateClipModal
+          isOpen={Boolean(selectedHighlightForClip)}
+          onClose={() => setSelectedHighlightForClip(null)}
+          videoId={id || ""}
+          highlightId={selectedHighlightForClip.id}
+          initialTitle={selectedHighlightForClip.hook_sentence ? `Clip: ${selectedHighlightForClip.hook_sentence.slice(0, 40)}` : "Untitled Clip"}
+          initialStartMs={selectedHighlightForClip.start_ms ?? Math.round((selectedHighlightForClip.start_time || 0) * 1000)}
+          initialEndMs={selectedHighlightForClip.end_ms ?? Math.round((selectedHighlightForClip.end_time || 0) * 1000)}
+          videoTitle={video.original_filename || video.filename}
+          videoDurationSeconds={video.duration_seconds}
+          onClipGenerated={() => loadVideoDetails()}
+        />
+      )}
+
+      {/* Manual Clip Generation Modal */}
+      {showManualClipModal && (
+        <GenerateClipModal
+          isOpen={showManualClipModal}
+          onClose={() => setShowManualClipModal(false)}
+          videoId={id || ""}
+          initialTitle={`Clip: ${video.original_filename || video.filename}`}
+          initialStartMs={0}
+          initialEndMs={Math.min(15000, Math.round(video.duration_seconds * 1000))}
+          videoTitle={video.original_filename || video.filename}
+          videoDurationSeconds={video.duration_seconds}
+          onClipGenerated={() => loadVideoDetails()}
+        />
       )}
 
       {/* Delete Confirmation Dialog */}

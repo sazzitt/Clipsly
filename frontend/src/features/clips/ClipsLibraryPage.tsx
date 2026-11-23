@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { Film, RefreshCw, Scissors, Trash2 } from "lucide-react";
+import { Film, RefreshCw, Scissors, Trash2, Download, StopCircle } from "lucide-react";
 import { PageContainer } from "../../components/layout/PageContainer";
 import { Button } from "../../components/ui/button";
 import { Skeleton } from "../../components/ui/skeleton";
@@ -37,6 +37,13 @@ function formatTimecode(ms: number): string {
   const m = Math.floor(totalSeconds / 60);
   const s = totalSeconds % 60;
   return `${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
+}
+
+function formatBytes(bytes?: number | null): string {
+  if (!bytes || bytes <= 0) return "";
+  const units = ["B", "KB", "MB", "GB", "TB"];
+  const i = Math.floor(Math.log(bytes) / Math.log(1024));
+  return `${(bytes / Math.pow(1024, i)).toFixed(1)} ${units[i]}`;
 }
 
 export const ClipsLibraryPage: React.FC = () => {
@@ -121,6 +128,17 @@ export const ClipsLibraryPage: React.FC = () => {
       toast.error("Deletion Failed", msg);
     } finally {
       setIsDeleting(false);
+    }
+  };
+
+  const handleCancelClip = async (clipId: string) => {
+    try {
+      await api.clips.cancel(clipId);
+      toast.success("Clip Cancelled", "Clip generation job was cancelled.");
+      fetchClips(true);
+    } catch (err: unknown) {
+      const msg = err instanceof ClipslyApiError ? err.detail : "Failed to cancel clip.";
+      toast.error("Cancellation Failed", msg);
     }
   };
 
@@ -262,21 +280,24 @@ export const ClipsLibraryPage: React.FC = () => {
 
                     <div className="flex flex-wrap items-center gap-1.5 pt-1">
                       <Badge variant="outline" className="text-[10px]">
-                        {clip.aspect_ratio_mode}
+                        {clip.conversion_mode || clip.aspect_ratio_mode}
                       </Badge>
-                      <Badge variant="secondary" className="text-[10px]">
-                        {clip.subtitle_style_preset}
-                      </Badge>
-                      {clip.subtitle_enabled && (
-                        <span className="text-[10px] text-emerald-400 font-mono">
-                          • Subtitles On
+                      {clip.width && clip.height && (
+                        <Badge variant="secondary" className="text-[10px] font-mono">
+                          {clip.width}x{clip.height}
+                        </Badge>
+                      )}
+                      {clip.file_size_bytes && clip.file_size_bytes > 0 && (
+                        <span className="text-[10px] text-muted-foreground font-mono">
+                          {formatBytes(clip.file_size_bytes)}
+                        </span>
+                      )}
+                      {clip.encoding_backend && (
+                        <span className="text-[10px] text-zinc-500 font-mono">
+                          {clip.encoding_backend}
                         </span>
                       )}
                     </div>
-
-                    <p className="text-[11px] text-zinc-500 leading-normal">
-                      Draft timeline configuration. FFmpeg cutting & rendering activates in Phase 13–16.
-                    </p>
                   </div>
 
                   <div className="mt-4 pt-3 border-t border-border/50 flex items-center justify-between gap-2">
@@ -286,6 +307,27 @@ export const ClipsLibraryPage: React.FC = () => {
                         <span>Open Studio</span>
                       </Link>
                     </Button>
+
+                    {clip.status === "COMPLETED" && (
+                      <Button asChild variant="ghost" size="iconSm" className="h-7 w-7 text-muted-foreground hover:text-primary transition-colors" title="Download MP4">
+                        <a href={api.clips.getDownloadUrl(clip.id)} download={clip.output_filename || `${clip.title}.mp4`}>
+                          <Download className="h-3.5 w-3.5" />
+                        </a>
+                      </Button>
+                    )}
+
+                    {(clip.status === "QUEUED" || clip.status === "PROCESSING") && (
+                      <Button
+                        variant="ghost"
+                        size="iconSm"
+                        onClick={() => handleCancelClip(clip.id)}
+                        className="h-7 w-7 text-amber-400 hover:text-amber-300 transition-colors"
+                        title="Cancel generation"
+                        aria-label={`Cancel clip ${clip.title}`}
+                      >
+                        <StopCircle className="h-3.5 w-3.5" />
+                      </Button>
+                    )}
 
                     <Button
                       variant="ghost"

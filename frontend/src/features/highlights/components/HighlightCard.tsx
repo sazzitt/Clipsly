@@ -10,6 +10,7 @@ import {
   Quote,
   Flame,
   Award,
+  Scissors,
 } from "lucide-react";
 import { Highlight } from "../../../types/api";
 import { Button } from "../../../components/ui/button";
@@ -21,6 +22,7 @@ interface HighlightCardProps {
   onEdit?: (highlight: Highlight) => void;
   onAccept?: (highlightId: string) => void;
   onReject?: (highlightId: string) => void;
+  onCreateClip?: (highlight: Highlight) => void;
   isProcessingAction?: boolean;
 }
 
@@ -30,6 +32,7 @@ export const HighlightCard: React.FC<HighlightCardProps> = ({
   onEdit,
   onAccept,
   onReject,
+  onCreateClip,
   isProcessingAction = false,
 }) => {
   const startSec = highlight.start_time ?? (highlight.start_ms ? highlight.start_ms / 1000 : 0);
@@ -259,6 +262,18 @@ export const HighlightCard: React.FC<HighlightCardProps> = ({
             >
               <Edit3 className="h-3 w-3" />
               Edit
+            </Button>
+          )}
+
+          {status === "ACCEPTED" && onCreateClip && (
+            <Button
+              variant="default"
+              size="sm"
+              className="h-8 gap-1.5 text-xs bg-emerald-600 hover:bg-emerald-500 text-white font-medium"
+              onClick={() => onCreateClip(highlight)}
+            >
+              <Scissors className="h-3.5 w-3.5" />
+              Create 9:16 Clip
             </Button>
           )}
 
