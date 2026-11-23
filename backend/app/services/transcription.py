@@ -32,6 +32,37 @@ from backend.app.services.system import check_cuda_available, get_hardware_telem
 
 logger = logging.getLogger("clipsly.transcription")
 
+def _register_nvidia_dll_directories() -> None:
+    """Discovers and registers pip-installed nvidia CUDA/cuBLAS/cuDNN DLL directories on Windows."""
+    if os.name != "nt":
+        return
+    try:
+        import sys
+        # Check both site-packages from sys.path and venv root
+        dirs_to_check = []
+        for p in sys.path:
+            cand = os.path.join(p, "nvidia")
+            if os.path.isdir(cand):
+                dirs_to_check.append(cand)
+        venv_root = os.path.dirname(os.path.dirname(sys.executable))
+        dirs_to_check.append(os.path.join(venv_root, "Lib", "site-packages", "nvidia"))
+        
+        for nvidia_base in dirs_to_check:
+            if os.path.exists(nvidia_base):
+                for sub in os.listdir(nvidia_base):
+                    bin_dir = os.path.join(nvidia_base, sub, "bin")
+                    if os.path.isdir(bin_dir):
+                        try:
+                            os.add_dll_directory(bin_dir)
+                        except Exception:
+                            pass
+                        if bin_dir not in os.environ.get("PATH", ""):
+                            os.environ["PATH"] = bin_dir + os.pathsep + os.environ.get("PATH", "")
+    except Exception as e:
+        logger.debug("NVIDIA DLL directory registration notice: %s", e)
+
+_register_nvidia_dll_directories()
+
 # Supported Faster-Whisper model catalog with resource specifications
 SUPPORTED_MODELS: Dict[str, Dict[str, Any]] = {
     "tiny": {
@@ -228,10 +259,21 @@ class WhisperModelManager:
             num_workers=1,
         )
 
-    async def unload_model(self) -> None:
-        """Explicitly unloads loaded model and triggers garbage collection to free VRAM."""
+    async def unload_model(self, force: bool = False) -> bool:
+        """Explicitly unloads loaded model and triggers garbage collection to free VRAM.
+        
+        Guards against unloading while a transcription pipeline is actively running.
+        """
+        async with _transcription_lock:
+            if _active_transcriptions and not force:
+                logger.warning(
+                    "Cannot unload Faster-Whisper model while %d transcription(s) are actively running.",
+                    len(_active_transcriptions)
+                )
+                return False
         async with self._lock:
             await self._unload_internal()
+            return True
 
     async def _unload_internal(self) -> None:
         """Internal synchronous model unloader."""

@@ -42,7 +42,9 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     # Shutdown sequence
     logger.info("Shutting down %s application cleanly...", settings.APP_NAME)
     from backend.app.services.queue import job_queue
+    from backend.app.services.transcription import model_manager
     await job_queue.stop()
+    await model_manager.unload_model(force=True)
     await engine.dispose()
     logger.info("Database engine connections disposed.")
 

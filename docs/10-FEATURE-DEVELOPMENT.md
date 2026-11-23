@@ -107,7 +107,7 @@ Every feature follows a disciplined 5-stage lifecycle:
   - **Validation & Containment:** FFprobe verification on generated WAV ensuring exact codec, channel, and rate compliance; storage path traversal protection.
   - **Frontend UI:** Dedicated Audio Preprocessing card on Video Details page with stream selector, extract button, real-time progress bar with cancel action, and validated WAV specifications display.
 - **Faster-Whisper Speech-to-Text Pipeline & Silero VAD (Phase 15):**
-  - **Hardware Acceleration:** Native CTranslate2 CUDA inference on NVIDIA RTX 3050 Laptop GPU (4GB VRAM) with ONNX Runtime Silero VAD (PyTorch-free). Default model: `base` with `float16` quantization (~1.0GB VRAM footprint).
+  - **Hardware Acceleration:** Native CTranslate2 CUDA inference on NVIDIA RTX 3050 Laptop GPU (4GB VRAM) with ONNX Runtime Silero VAD (PyTorch-free). Default model: `base` with `float16` quantization (measured +214 MB model load delta, 1,409 MB total peak VRAM, 5.3x real-time speedup, preserving > 2.6 GB VRAM headroom for Windows 11 DWM and desktop stability). Optional models: `tiny` (fast passes) and `small` (high-accuracy dialogue).
   - **WhisperModelManager:** Non-blocking thread-safe singleton managing the loaded model lifecycle in worker threads via `asyncio.to_thread`. Enforces ADR-002 (single heavy model in VRAM at any time) with automatic CPU fallback on CUDA out-of-memory.
   - **Silero Voice Activity Detection:** Built-in VAD filtering pre-segments audio, removes non-speech background audio, and outputs `no_speech_prob` telemetry per segment.
   - **Word Timestamps:** Word-level precision timestamps stored in JSON arrays (`words_json`) on `transcript_segments` for downstream karaoke captions and highlight boundaries.
