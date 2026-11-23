@@ -248,6 +248,9 @@ export const api = {
         `/videos/${id}?purge_files=${purgeFiles}`,
         { method: "DELETE", signal }
       ),
+    refreshMetadata: (id: string, signal?: AbortSignal) =>
+      request<Video>(`/videos/${id}/metadata/refresh`, { method: "POST", signal }),
+    getStreamUrl: (id: string) => `${API_BASE_URL}/videos/${id}/stream`,
   },
 
   jobs: {

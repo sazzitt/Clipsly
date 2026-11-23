@@ -53,14 +53,14 @@ The schema defines eight relational entities. All primary keys utilize canonical
 ---
 
 ### 2.1 Entity: `videos`
-Stores metadata and technical stream characteristics for uploaded long-form source videos.
+Stores metadata and technical stream characteristics for uploaded long-form source videos. Updated in Phase 13 to support rich stream metadata, orientation classification, rotation, bit depth, pixel formats, and optional audio streams.
 
 ```sql
 CREATE TABLE videos (
     id VARCHAR(36) PRIMARY KEY,                         -- UUIDv4
     filename VARCHAR(255) NOT NULL,                     -- Sanitized storage filename (e.g., "a1b2_podcast.mp4")
     original_filename VARCHAR(255) NOT NULL,            -- Original file name as selected by user
-    file_path VARCHAR(512) NOT NULL UNIQUE,             -- Relative path: "storage/uploads/{id}.mp4"
+    file_path VARCHAR(512) NOT NULL UNIQUE,             -- Relative or absolute path in storage directory
     file_size_bytes BIGINT NOT NULL,                    -- File size on disk in bytes
     duration_seconds REAL NOT NULL,                     -- Total duration in seconds (from ffprobe)
     width INTEGER NOT NULL,                             -- Video frame width (e.g., 1920)
@@ -68,11 +68,24 @@ CREATE TABLE videos (
     aspect_ratio VARCHAR(16) NOT NULL,                  -- Display aspect ratio (e.g., "16:9")
     fps REAL NOT NULL,                                  -- Frames per second (e.g., 29.97, 30.0, 60.0)
     video_codec VARCHAR(32) NOT NULL,                   -- Codec identifier (e.g., "h264", "hevc", "vp9")
-    audio_codec VARCHAR(32) NOT NULL,                   -- Audio codec (e.g., "aac", "mp3", "opus")
-    audio_sample_rate INTEGER NOT NULL,                 -- Audio sample rate (e.g., 44100, 48000)
-    audio_channels INTEGER NOT NULL,                    -- Channel count (1 for mono, 2 for stereo)
+    audio_codec VARCHAR(32),                            -- Audio codec (nullable: NULL when video has no audio)
+    audio_sample_rate INTEGER,                          -- Audio sample rate (nullable)
+    audio_channels INTEGER,                             -- Channel count (nullable: 1 for mono, 2 for stereo)
     status VARCHAR(32) NOT NULL DEFAULT 'UPLOADED',     -- 'UPLOADED', 'PROBED', 'PROCESSING', 'READY', 'ERROR'
     error_message TEXT,                                 -- Technical error details if status='ERROR'
+    container_format VARCHAR(64),                       -- Container format (e.g., 'mov,mp4,m4a,3gp,3g2,mj2', 'matroska,webm')
+    bitrate BIGINT,                                     -- Overall container bitrate in bits per second
+    video_codec_profile VARCHAR(64),                    -- Video codec profile (e.g., 'High', 'Main', 'Baseline')
+    pixel_format VARCHAR(32),                           -- Pixel format (e.g., 'yuv420p', 'yuv422p10le')
+    bit_depth INTEGER,                                  -- Color bit depth (e.g., 8, 10, 12)
+    video_bitrate BIGINT,                               -- Video stream bitrate in bps
+    rotation INTEGER NOT NULL DEFAULT 0,                -- Display rotation angle (0, 90, 180, 270)
+    channel_layout VARCHAR(32),                         -- Audio channel layout (e.g., 'stereo', 'mono', '5.1')
+    audio_bitrate BIGINT,                               -- Audio stream bitrate in bps
+    orientation VARCHAR(16) NOT NULL DEFAULT 'landscape', -- 'landscape', 'portrait', 'square'
+    metadata_status VARCHAR(32) NOT NULL DEFAULT 'COMPLETED', -- 'PENDING', 'PROCESSING', 'COMPLETED', 'FAILED'
+    metadata_extracted_at DATETIME,                     -- UTC timestamp when FFprobe extracted stream metadata
+    metadata_json TEXT,                                 -- Raw FFprobe JSON extraction payload for auditing
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     
@@ -83,6 +96,7 @@ CREATE TABLE videos (
 
 CREATE INDEX idx_videos_status ON videos(status);
 CREATE INDEX idx_videos_created_at ON videos(created_at DESC);
+CREATE INDEX idx_videos_metadata_status ON videos(metadata_status);
 ```
 
 ---

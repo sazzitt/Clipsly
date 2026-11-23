@@ -1,5 +1,5 @@
 from backend.app.schemas.system import SystemHealthResponse, SystemInfoResponse
 from backend.app.schemas.dashboard import DashboardSummaryResponse
-from backend.app.schemas.video import VideoUploadResponse
+from backend.app.schemas.video import VideoUploadResponse, VideoDetailResponse
 
-__all__ = ["SystemHealthResponse", "SystemInfoResponse", "DashboardSummaryResponse", "VideoUploadResponse"]
+__all__ = ["SystemHealthResponse", "SystemInfoResponse", "DashboardSummaryResponse", "VideoUploadResponse", "VideoDetailResponse"]

@@ -83,13 +83,19 @@ Every feature follows a disciplined 5-stage lifecycle:
 
 - **Status:** ACTIVE (Phase 12 Complete).
 - **Current Baseline:**
-  - Backend: 8 SQLAlchemy ORM models, Alembic migrations, 3 security and telemetry middlewares, 7 domain routers with full video streaming upload, FFprobe validation, server-side search, filtering, allowlisted sorting, pagination, cascade management, and comprehensive failure cleanup; 51 pytest tests passing in 4.23s.
-  - Frontend: Workstation design system, 17 UI primitives, 9 workstation modules, 7 management components (`SearchInput`, `FilterSelect`, `SortSelector`, `PaginationControls`, `DeleteConfirmationDialog`, `NoResultsState`, `EntityStatusBadge`), 6 complete feature views (`/`, `/videos`, `/video/:id`, `/upload`, `/jobs`, `/clips`, `/exports`), and 73 Vitest tests passing in 8.93s.
-  - Code Quality: ESLint clean (0 errors, 0 warnings), TypeScript strict check (`tsc -b`) passing with 0 errors, Vite production build clean in 8.44s.
+  - Backend: 8 SQLAlchemy ORM models, Alembic migrations (including `3a9c45884775` adding video metadata columns and nullable audio fields), 3 security and telemetry middlewares, 7 domain routers with full video streaming upload, RFC 9110 HTTP Range streaming, FFprobe metadata extraction, server-side search, filtering, allowlisted sorting, pagination, cascade management, and comprehensive failure cleanup; 71 pytest tests passing in 9.35s.
+  - Frontend: Workstation design system, 17 UI primitives, 9 workstation modules, 7 management components (`SearchInput`, `FilterSelect`, `SortSelector`, `PaginationControls`, `DeleteConfirmationDialog`, `NoResultsState`, `EntityStatusBadge`), custom HTML5 `VideoPlayer` component with scrubbing, volume, speed selector, keyboard shortcuts, and fullscreen, 6 complete feature views (`/`, `/videos`, `/video/:id`, `/upload`, `/jobs`, `/clips`, `/exports`), and 84 Vitest tests passing in 11.07s.
+  - Code Quality: ESLint clean (0 errors, 0 warnings), TypeScript strict check (`tsc -b`) passing with 0 errors, Vite production build clean in 12.31s.
 - **Local Video Upload & Ingestion Pipeline Architecture (Phase 12):**
   - Chunked streaming upload (`POST /api/v1/videos/upload`) with 1MB bounded buffer, preventing memory spikes for files up to 10 GB.
-  - Asynchronous FFprobe verification validating container structure, video stream presence, audio track presence (with actual speech detection reserved for Phase 13/14 Faster-Whisper processing), dimensions, framerate, and duration bounds ($5\text{m}-120\text{m}$).
+  - Asynchronous FFprobe verification validating container structure, video stream presence, audio track presence (with actual speech detection reserved for Phase 14 Faster-Whisper processing), dimensions, framerate, and duration bounds ($5\text{m}-120\text{m}$).
   - Filesystem path privacy: internal filesystem paths are strictly withheld from API responses; safe storage labels are returned to the client instead.
   - Real-time network progress via `XMLHttpRequest.upload.onprogress` with true speed and remaining time calculations.
   - Safe scratch space lifecycle: scratch files in `storage/temp/` atomically moved to `storage/uploads/` on success, or unlinked immediately on failure or cancellation (zero orphaned files, zero orphaned DB records).
-- **Next Phase:** Phase 13 (Audio Extraction & Media Metadata Pipeline).
+- **Video Preview & Metadata Extraction Pipeline (Phase 13):**
+  - Asynchronous FFprobe engine (`metadata_extraction.py`) extracting comprehensive video stream attributes (codecs, profiles, pixel formats, bit depth, rotation, orientation, bitrates) and audio stream characteristics (codecs, channels, sample rate, layout).
+  - Handles audio-less videos honestly and gracefully with nullable audio schema and UI states.
+  - RFC 9110 HTTP Range video streaming endpoint (`GET /api/v1/videos/{video_id}/stream`) with 128KB bounded streaming, 206 Partial Content, 416 Range Not Satisfiable, and storage path containment checks.
+  - Interactive metadata refresh endpoint (`POST /api/v1/videos/{video_id}/metadata/refresh`) guarded against concurrent duplicate extraction runs (409 Conflict).
+  - Workstation HTML5 video player component (`VideoPlayer.tsx`) with full playback controls, scrubber with buffered chunks, volume, playback speed dropdown, fullscreen, error recovery, and accessible keyboard shortcuts.
+- **Next Phase:** Phase 14 (Audio Extraction & Faster-Whisper Transcription Pipeline).

@@ -1,4 +1,5 @@
 import asyncio
+from datetime import datetime, timezone
 import hashlib
 import json
 import math
@@ -307,6 +308,10 @@ async def ingest_video(
             audio_codec=metadata["audio_codec"],
             audio_sample_rate=metadata["audio_sample_rate"],
             audio_channels=metadata["audio_channels"],
+            container_format=extension.lstrip(".").lower(),
+            orientation="portrait" if metadata["height"] > metadata["width"] else "square" if metadata["height"] == metadata["width"] else "landscape",
+            metadata_status="COMPLETED",
+            metadata_extracted_at=datetime.now(timezone.utc),
             status="READY",
         )
 

@@ -540,17 +540,113 @@ backend/tests/test_upload_api.py::test_duplicate_content_behavior PASSED [100%]
 
 ---
 
-## 12. Planned Sections for Phase 19 Specification
+## 12. Phase 13 Verification Test Run Results
 
-During Phase 19, this document will be expanded to include:
-- Complete automated test suite commands (`pytest --cov`, `pnpm test`).
-- Continuous integration (CI) workflow for GitHub Actions (running CPU mock suites).
-- Benchmarking report template recording RTF, render times, and memory logs across 10-minute, 30-minute, and 60-minute test inputs.
+### 12.1 Backend Pytest Execution (`backend/tests/test_metadata_and_stream.py` & full suite)
+```
+============================= test session starts =============================
+platform win32 -- Python 3.14.3, pytest-9.2.0, pluggy-1.7.0
+rootdir: Clipsly, configfile: pytest.ini
+plugins: anyio-4.16.0, asyncio-1.5.0
+collected 71 items
+
+backend/tests/test_api_v1_endpoints.py::test_videos_endpoints PASSED     [  1%]
+backend/tests/test_api_v1_endpoints.py::test_jobs_endpoints PASSED       [  2%]
+backend/tests/test_api_v1_endpoints.py::test_transcripts_endpoints PASSED [  4%]
+backend/tests/test_api_v1_endpoints.py::test_highlights_endpoints PASSED [  5%]
+backend/tests/test_api_v1_endpoints.py::test_clips_lifecycle PASSED      [  7%]
+backend/tests/test_api_v1_endpoints.py::test_exports_endpoints PASSED    [  8%]
+backend/tests/test_config.py::test_settings_defaults PASSED              [  9%]
+backend/tests/test_config.py::test_directory_paths_exist PASSED          [ 11%]
+backend/tests/test_config.py::test_cors_origins_contain_local_vite PASSED [ 12%]
+backend/tests/test_dashboard_api.py::test_dashboard_summary_empty_database PASSED [ 14%]
+backend/tests/test_dashboard_api.py::test_dashboard_summary_with_entities PASSED [ 15%]
+backend/tests/test_database.py::test_check_db_connection PASSED          [ 16%]
+backend/tests/test_database.py::test_sqlite_pragmas PASSED               [ 18%]
+backend/tests/test_error_handling.py::test_not_found_error_envelope PASSED [ 19%]
+backend/tests/test_error_handling.py::test_validation_error_envelope PASSED [ 21%]
+backend/tests/test_error_handling.py::test_not_implemented_error_envelope PASSED [ 22%]
+backend/tests/test_health.py::test_root_endpoint PASSED                  [ 23%]
+backend/tests/test_health.py::test_system_health_endpoint PASSED         [ 25%]
+backend/tests/test_management_api.py::test_video_filtering_and_search PASSED [ 26%]
+backend/tests/test_management_api.py::test_video_details_with_counts PASSED [ 28%]
+backend/tests/test_management_api.py::test_video_delete_cascades_children PASSED [ 29%]
+backend/tests/test_management_api.py::test_jobs_filtering_and_cancel PASSED [ 30%]
+backend/tests/test_management_api.py::test_exports_management_and_delete PASSED [ 32%]
+backend/tests/test_metadata_and_stream.py::test_extract_metadata_landscape_mp4 PASSED [ 33%]
+backend/tests/test_metadata_and_stream.py::test_extract_metadata_portrait PASSED [ 35%]
+backend/tests/test_metadata_and_stream.py::test_extract_metadata_no_audio PASSED [ 36%]
+backend/tests/test_metadata_and_stream.py::test_extract_metadata_mkv PASSED [ 38%]
+backend/tests/test_metadata_and_stream.py::test_extract_metadata_webm PASSED [ 39%]
+backend/tests/test_metadata_and_stream.py::test_extract_metadata_mov PASSED [ 40%]
+backend/tests/test_metadata_and_stream.py::test_extract_metadata_corrupted_file PASSED [ 42%]
+backend/tests/test_metadata_and_stream.py::test_extract_metadata_missing_file PASSED [ 43%]
+backend/tests/test_metadata_and_stream.py::test_extract_metadata_timeout PASSED [ 45%]
+backend/tests/test_metadata_and_stream.py::test_extract_and_persist_metadata PASSED [ 46%]
+backend/tests/test_metadata_and_stream.py::test_refresh_metadata_concurrency_lock PASSED [ 47%]
+backend/tests/test_metadata_and_stream.py::test_api_refresh_metadata_endpoint PASSED [ 49%]
+backend/tests/test_metadata_and_stream.py::test_api_refresh_metadata_missing_video PASSED [ 50%]
+backend/tests/test_stream_video_full_content PASSED                      [ 52%]
+backend/tests/test_stream_video_range_slice PASSED                       [ 53%]
+backend/tests/test_stream_video_range_open_ended PASSED                  [ 54%]
+backend/tests/test_stream_video_range_suffix PASSED                      [ 56%]
+backend/tests/test_stream_video_unsatisfiable_range PASSED               [ 57%]
+backend/tests/test_stream_video_missing_file_on_disk PASSED              [ 59%]
+backend/tests/test_stream_video_path_traversal_blocked PASSED            [ 60%]
+backend/tests/test_middleware.py::test_correlation_id_generated PASSED   [ 61%]
+backend/tests/test_middleware.py::test_correlation_id_propagated PASSED  [ 63%]
+backend/tests/test_middleware.py::test_request_timing_header PASSED      [ 64%]
+backend/tests/test_middleware.py::test_localhost_security_blocks_external_host PASSED [ 66%]
+backend/tests/test_models.py::test_models_lifecycle_and_relationships PASSED [ 67%]
+backend/tests/test_system_api.py::test_system_info_endpoint PASSED       [ 69%]
+backend/tests/test_system_api.py::test_system_hardware_endpoint PASSED   [ 70%]
+backend/tests/test_system_api.py::test_system_settings_get_and_patch PASSED [ 71%]
+backend/tests/test_upload_api.py::test_upload_valid_mp4 PASSED           [ 73%]
+backend/tests/test_upload_api.py::test_upload_valid_mkv PASSED           [ 74%]
+backend/tests/test_upload_api.py::test_upload_valid_webm PASSED          [ 76%]
+backend/tests/test_upload_api.py::test_upload_unsupported_extension PASSED [ 77%]
+backend/tests/test_upload_api.py::test_upload_empty_file PASSED          [ 78%]
+backend/tests/test_upload_api.py::test_upload_exceeds_max_size PASSED    [ 80%]
+backend/tests/test_upload_api.py::test_upload_corrupt_video PASSED       [ 81%]
+backend/tests/test_upload_api.py::test_upload_no_video_stream PASSED     [ 83%]
+backend/tests/test_upload_api.py::test_upload_low_disk_space_rejection PASSED [ 84%]
+backend/tests/test_upload_api.py::test_upload_duration_limits_enforced PASSED [ 85%]
+backend/tests/test_upload_api.py::test_duplicate_filename_preserves_unique_records PASSED [ 87%]
+backend/tests/test_upload_api.py::test_upload_valid_mov PASSED           [ 88%]
+backend/tests/test_upload_api.py::test_path_privacy_no_raw_paths_in_response PASSED [ 90%]
+backend/tests/test_upload_api.py::test_ffprobe_timeout_cleanup PASSED    [ 91%]
+backend/tests/test_upload_api.py::test_ffprobe_missing_binary PASSED     [ 92%]
+backend/tests/test_upload_api.py::test_disk_write_failure_cleanup PASSED [ 94%]
+backend/tests/test_upload_api.py::test_db_commit_failure_cleans_persistent_file PASSED [ 95%]
+backend/tests/test_upload_api.py::test_client_cancellation_during_upload PASSED [ 97%]
+backend/tests/test_route_handles_client_disconnect PASSED                [ 98%]
+backend/tests/test_upload_api.py::test_duplicate_content_behavior PASSED [100%]
+
+============================= 71 passed in 9.35s ==============================
+```
+- **Tests Passing:** 71/71 (100%).
+- **Phase 13 Additions:** Metadata extraction from MP4, MKV, MOV, WebM containers, orientation determination (portrait vs landscape), video without audio handling (nullable audio columns), corrupt container rejection, missing file handling, timeout watchdog cleanup, active extraction concurrency lock, RFC 9110 HTTP Range video streaming (full content 200, byte slice 206, open-ended 206, suffix 206, unsatisfiable range 416), missing media file 404, path traversal containment protection (400/404), and interactive metadata refresh endpoint (`POST /api/v1/videos/{video_id}/metadata/refresh`).
+
+### 12.2 Frontend Vitest Execution
+```
+ Test Files  10 passed (10)
+      Tests  84 passed (84)
+   Duration  11.07s
+```
+- **Phase 13 Additions:**
+  - `VideoPlayer`: HTML5 `<video>` rendering, custom workstation control overlay, play/pause toggle, seek bar scrubber with buffered range, volume slider & mute toggle, playback speed menu (0.5x to 2x), fullscreen toggle, stream error overlay with retry button, and keyboard shortcuts (Space, Arrow keys, M, F).
+  - `VideoDetailPage`: Technical stream view overhaul with `VideoPlayer` embed, Section B overview quick stats, Section C video stream characteristics, Section D audio stream characteristics (or honest no-audio empty state), and Section E metadata status badge with interactive refresh button.
+  - `VideoLibraryPage`: Orientation badge, format badge, resolution tag, and metadata status badges on each video card.
+
+### 12.3 Code Quality & Production Build
+- **ESLint:** `npm run lint` passed with 0 errors and 0 warnings.
+- **TypeScript:** Strict typecheck `tsc -b` passed with 0 errors.
+- **Vite Production Build:** Compiled 1672 modules into production bundle in 12.31s with zero errors.
 
 ---
 
 ## 13. Current Status & Next Steps
 
-- **Status:** PHASE 12 COMPLETED & VERIFIED.
-- **Active Suites:** 51 backend pytest tests passing (100%), 73 frontend Vitest tests passing (100%), ESLint clean (0 errors, 0 warnings), TypeScript build clean.
-- **Next Phase:** Proceed to Phase 13 upon user approval.
+- **Status:** PHASE 13 COMPLETED & VERIFIED.
+- **Active Suites:** 71 backend pytest tests passing (100%), 84 frontend Vitest tests passing (100%), ESLint clean (0 errors, 0 warnings), TypeScript build clean.
+- **Next Phase:** Proceed to Phase 14 (Audio Extraction & Faster-Whisper Transcription Pipeline) upon user approval.

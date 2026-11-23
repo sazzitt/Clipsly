@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { Upload, RefreshCw, Eye, Trash2 } from "lucide-react";
 import { PageContainer } from "../../components/layout/PageContainer";
 import { Button } from "../../components/ui/button";
+import { Badge } from "../../components/ui/badge";
 import { Skeleton } from "../../components/ui/skeleton";
 import { EmptyVideoLibrary } from "../../components/workstation/EmptyVideoLibrary";
 import { VideoThumbnail } from "../../components/workstation/VideoThumbnail";
@@ -243,7 +244,7 @@ export const VideoLibraryPage: React.FC = () => {
                     </div>
                   </div>
 
-                  <div className="space-y-1">
+                  <div className="space-y-1.5">
                     <h3
                       className="text-sm font-semibold text-foreground truncate group-hover:text-primary transition-colors"
                       title={video.original_filename || video.filename}
@@ -253,6 +254,27 @@ export const VideoLibraryPage: React.FC = () => {
                     <p className="text-[11px] font-mono text-muted-foreground truncate">
                       {video.filename}
                     </p>
+
+                    {/* Phase 13 Metadata Badges */}
+                    <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                      <Badge variant="outline" size="sm" className="font-mono text-[10px] bg-secondary/30">
+                        {(video.container_format || video.filename.split(".").pop() || "").toUpperCase()}
+                      </Badge>
+                      <Badge variant="secondary" size="sm" className="text-[10px]">
+                        {(() => {
+                          const o = video.orientation || (video.height > video.width ? "portrait" : "landscape");
+                          return o.charAt(0).toUpperCase() + o.slice(1);
+                        })()}
+                      </Badge>
+                      <Badge variant="outline" size="sm" className="font-mono text-[10px] text-zinc-400 border-zinc-700/60">
+                        {video.height >= 2160 ? "4K" : video.height >= 1080 ? "1080p" : video.height >= 720 ? "720p" : `${video.width}x${video.height}`}
+                      </Badge>
+                      {video.metadata_status === "FAILED" && (
+                        <Badge variant="destructive" size="sm" className="text-[10px]">
+                          Metadata Failed
+                        </Badge>
+                      )}
+                    </div>
                   </div>
                 </div>
 

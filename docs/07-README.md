@@ -65,8 +65,8 @@ All project requirements, architecture specifications, database designs, API con
 - [x] **Phase 10:** Dashboard Development & Workstation Overview *(Completed & Verified)*
 - [x] **Phase 11:** Project Management System *(Completed & Verified)*
 - [x] **Phase 12:** Local Video Upload & Ingestion Pipeline *(Completed & Verified)*
-- [ ] **Phase 13:** Audio Extraction & Media Metadata Pipeline *(Next)*
-- [ ] **Phase 14:** AI Highlight Detection & Scoring Engine
+- [x] **Phase 13:** Video Preview & Metadata Extraction *(Completed & Verified)*
+- [ ] **Phase 14:** Audio Extraction & Faster-Whisper Transcription Pipeline *(Next)*
 - [ ] **Phase 15:** Candidate Selection & Clip Timestamp Generator
 - [ ] **Phase 16:** FFmpeg Cutting & Clip Generation Engine
 - [ ] **Phase 17:** Vertical 9:16 Re-Framing Engine (Crop & Blur-Fill)

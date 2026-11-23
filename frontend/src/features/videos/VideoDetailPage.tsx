@@ -12,13 +12,21 @@ import {
   AlertCircle,
   Clock,
   Layers,
+  RefreshCw,
+  Monitor,
+  Music,
+  VolumeX,
+  CheckCircle2,
+  AlertTriangle,
+  Compass,
 } from "lucide-react";
 import { PageContainer } from "../../components/layout/PageContainer";
 import { Card, CardHeader, CardTitle, CardContent } from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
+import { Badge } from "../../components/ui/badge";
 import { Skeleton } from "../../components/ui/skeleton";
-import { VideoThumbnail } from "../../components/workstation/VideoThumbnail";
 import { ProcessingStatus, JobStatus } from "../../components/workstation/ProcessingStatus";
+import { VideoPlayer } from "./components/VideoPlayer";
 import { useToast } from "../../hooks/useToast";
 import { api, ClipslyApiError } from "../../services/api";
 import { Video, ProcessingJob, Transcript, Highlight, Clip } from "../../types/api";
@@ -40,6 +48,14 @@ function formatDuration(seconds: number): string {
   return m > 0 ? `${m}m ${s}s` : `${s}s`;
 }
 
+function formatBitrate(bps: number | null | undefined): string {
+  if (!bps || bps <= 0) return "N/A";
+  if (bps >= 1_000_000) {
+    return `${(bps / 1_000_000).toFixed(2)} Mbps`;
+  }
+  return `${(bps / 1_000).toFixed(0)} kbps`;
+}
+
 export const VideoDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -53,6 +69,7 @@ export const VideoDetailPage: React.FC = () => {
   const [clips, setClips] = useState<Clip[]>([]);
 
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [isRefreshingMetadata, setIsRefreshingMetadata] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
   // Deletion modal
@@ -106,6 +123,24 @@ export const VideoDetailPage: React.FC = () => {
     loadVideoDetails();
   }, [loadVideoDetails]);
 
+  const handleRefreshMetadata = async () => {
+    if (!id) return;
+    setIsRefreshingMetadata(true);
+    try {
+      const updated = await api.videos.refreshMetadata(id);
+      setVideo(updated);
+      toast.success(
+        "Metadata Refreshed",
+        "FFprobe re-extracted all video and audio stream parameters."
+      );
+    } catch (err: unknown) {
+      const msg = err instanceof ClipslyApiError ? err.detail : "Failed to refresh metadata.";
+      toast.error("Refresh Failed", msg);
+    } finally {
+      setIsRefreshingMetadata(false);
+    }
+  };
+
   const handleDelete = async () => {
     if (!id || !video) return;
     setIsDeleting(true);
@@ -142,9 +177,12 @@ export const VideoDetailPage: React.FC = () => {
             <Skeleton className="h-9 w-24" />
             <Skeleton className="h-8 w-64" />
           </div>
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <Skeleton className="aspect-video w-full rounded-xl lg:col-span-1" />
-            <Skeleton className="h-64 w-full rounded-xl lg:col-span-2" />
+          <div className="space-y-6">
+            <Skeleton className="aspect-video w-full max-h-[480px] rounded-xl" />
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              <Skeleton className="h-64 w-full rounded-xl" />
+              <Skeleton className="h-64 w-full rounded-xl lg:col-span-2" />
+            </div>
           </div>
         </div>
       </PageContainer>
@@ -182,6 +220,17 @@ export const VideoDetailPage: React.FC = () => {
               <ArrowLeft className="h-3.5 w-3.5" />
               <span>Back to Library</span>
             </Link>
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleRefreshMetadata}
+            disabled={isRefreshingMetadata}
+            className="h-8 text-xs gap-1.5"
+            data-testid="header-refresh-metadata-btn"
+          >
+            <RefreshCw className={`h-3.5 w-3.5 ${isRefreshingMetadata ? "animate-spin" : ""}`} />
+            <span>Refresh Metadata</span>
           </Button>
           <Button
             variant="destructive"
@@ -248,123 +297,263 @@ export const VideoDetailPage: React.FC = () => {
         </Button>
       </div>
 
-      {/* Tab 1: Technical Overview */}
+      {/* Tab 1: Technical Overview & Preview */}
       {activeTab === "overview" && (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 pt-2">
-          {/* Thumbnail preview */}
-          <div className="space-y-4">
-            <VideoThumbnail
-              durationSeconds={video.duration_seconds}
-              resolution={`${video.width}x${video.height}`}
-              aspectRatio="16:9"
-              className="w-full shadow-md"
-            />
+        <div className="space-y-6 pt-2">
+          {/* Section A: Real Workstation Video Player */}
+          <section className="space-y-2" aria-label="Video Preview Player">
+            {video.file_exists ? (
+              <VideoPlayer
+                videoId={video.id}
+                title={video.original_filename || video.filename}
+                className="w-full max-h-[520px]"
+              />
+            ) : (
+              <div className="rounded-xl border border-dashed border-amber-500/40 bg-amber-500/10 p-8 text-center space-y-3">
+                <AlertTriangle className="h-8 w-8 text-amber-400 mx-auto" />
+                <h3 className="text-sm font-semibold text-foreground">Source Video File Not Found on Disk</h3>
+                <p className="text-xs text-muted-foreground max-w-md mx-auto">
+                  The database contains metadata for this asset, but the underlying file is missing from local storage.
+                </p>
+              </div>
+            )}
+          </section>
 
-            <div className="p-4 rounded-xl border border-border bg-card/60 space-y-3 text-xs">
-              <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">Status:</span>
-                <EntityStatusBadge status={video.status} />
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">SSD File Status:</span>
-                <span className={video.file_exists ? "text-emerald-400 font-medium" : "text-amber-400 font-medium"}>
-                  {video.file_exists ? "File Verified on SSD" : "File Missing / Moved"}
+          {/* Section E: Metadata Extraction Status & Sync Bar */}
+          <div className="flex flex-wrap items-center justify-between gap-3 p-3.5 rounded-xl border border-border bg-card/60">
+            <div className="flex items-center gap-3">
+              <span className="text-xs text-muted-foreground font-medium">Metadata Status:</span>
+              {video.metadata_status === "COMPLETED" ? (
+                <Badge variant="outline" className="gap-1 bg-emerald-500/10 text-emerald-400 border-emerald-500/30 font-mono text-[11px]">
+                  <CheckCircle2 className="h-3 w-3" />
+                  FFprobe Verified
+                </Badge>
+              ) : video.metadata_status === "FAILED" ? (
+                <Badge variant="outline" className="gap-1 bg-destructive/10 text-destructive border-destructive/30 font-mono text-[11px]">
+                  <AlertCircle className="h-3 w-3" />
+                  Extraction Failed
+                </Badge>
+              ) : (
+                <Badge variant="outline" className="gap-1 bg-blue-500/10 text-blue-400 border-blue-500/30 animate-pulse font-mono text-[11px]">
+                  <RefreshCw className="h-3 w-3 animate-spin" />
+                  Analyzing Streams
+                </Badge>
+              )}
+
+              {video.metadata_extracted_at && (
+                <span className="text-[11px] font-mono text-muted-foreground">
+                  (Analyzed: {new Date(video.metadata_extracted_at).toLocaleTimeString()})
                 </span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">Imported:</span>
-                <span className="font-mono text-foreground">
-                  {new Date(video.created_at).toLocaleDateString([], {
-                    month: "short",
-                    day: "numeric",
-                    year: "numeric",
-                  })}
-                </span>
-              </div>
+              )}
+            </div>
+
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleRefreshMetadata}
+              disabled={isRefreshingMetadata}
+              className="h-7 text-xs gap-1.5"
+              data-testid="refresh-metadata-btn"
+            >
+              <RefreshCw className={`h-3 w-3 ${isRefreshingMetadata ? "animate-spin" : ""}`} />
+              <span>{isRefreshingMetadata ? "Analyzing..." : "Re-Extract Metadata"}</span>
+            </Button>
+          </div>
+
+          {/* Section B: Overview & Quick Stats */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-3">
+            <div className="p-3 rounded-xl border border-border bg-card/60 space-y-1">
+              <span className="text-[11px] text-muted-foreground block">Container</span>
+              <span className="text-sm font-bold font-mono text-foreground">
+                {(video.container_format || video.filename.split(".").pop() || "N/A").toUpperCase()}
+              </span>
+            </div>
+
+            <div className="p-3 rounded-xl border border-border bg-card/60 space-y-1">
+              <span className="text-[11px] text-muted-foreground block">File Size</span>
+              <span className="text-sm font-bold font-mono text-foreground">
+                {formatBytes(video.file_size_bytes)}
+              </span>
+            </div>
+
+            <div className="p-3 rounded-xl border border-border bg-card/60 space-y-1">
+              <span className="text-[11px] text-muted-foreground block">Duration</span>
+              <span className="text-sm font-bold font-mono text-foreground">
+                {formatDuration(video.duration_seconds)}
+              </span>
+            </div>
+
+            <div className="p-3 rounded-xl border border-border bg-card/60 space-y-1">
+              <span className="text-[11px] text-muted-foreground block">Resolution</span>
+              <span className="text-sm font-bold font-mono text-foreground">
+                {video.width}x{video.height}
+              </span>
+            </div>
+
+            <div className="p-3 rounded-xl border border-border bg-card/60 space-y-1">
+              <span className="text-[11px] text-muted-foreground block">Orientation</span>
+              <span className="text-sm font-bold font-mono text-foreground flex items-center gap-1">
+                <Compass className="h-3 w-3 text-primary" />
+                <span>{video.orientation ? video.orientation.charAt(0).toUpperCase() + video.orientation.slice(1) : "Landscape"}</span>
+              </span>
+            </div>
+
+            <div className="p-3 rounded-xl border border-border bg-card/60 space-y-1">
+              <span className="text-[11px] text-muted-foreground block">Total Bitrate</span>
+              <span className="text-sm font-bold font-mono text-foreground">
+                {formatBitrate(video.bitrate)}
+              </span>
             </div>
           </div>
 
-          {/* Technical Metadata Cards */}
-          <div className="lg:col-span-2 space-y-4">
+          {/* Technical Deep Dive: Video & Audio Streams */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Section C: Video Stream Technical Details */}
             <Card>
               <CardHeader className="pb-3">
                 <CardTitle className="text-sm font-semibold flex items-center gap-2">
-                  <Layers className="h-4 w-4 text-primary" />
+                  <Monitor className="h-4 w-4 text-primary" />
                   Stream Characteristics (FFprobe Verified)
                 </CardTitle>
               </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-xs font-mono">
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-xs font-mono">
                   <div className="p-3 rounded-lg bg-secondary/50 border border-border/60 space-y-1">
-                    <span className="text-muted-foreground block text-[11px]">Duration</span>
-                    <span className="text-foreground font-semibold text-sm">
-                      {formatDuration(video.duration_seconds)}
-                    </span>
-                  </div>
-                  <div className="p-3 rounded-lg bg-secondary/50 border border-border/60 space-y-1">
-                    <span className="text-muted-foreground block text-[11px]">Resolution</span>
-                    <span className="text-foreground font-semibold text-sm">
-                      {video.width}x{video.height}
-                    </span>
-                  </div>
-                  <div className="p-3 rounded-lg bg-secondary/50 border border-border/60 space-y-1">
-                    <span className="text-muted-foreground block text-[11px]">Aspect Ratio</span>
-                    <span className="text-foreground font-semibold text-sm">
-                      {video.aspect_ratio}
-                    </span>
-                  </div>
-                  <div className="p-3 rounded-lg bg-secondary/50 border border-border/60 space-y-1">
-                    <span className="text-muted-foreground block text-[11px]">Frame Rate</span>
-                    <span className="text-foreground font-semibold text-sm">
-                      {video.fps.toFixed(1)} fps
-                    </span>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-xs font-mono mt-3">
-                  <div className="p-3 rounded-lg bg-secondary/50 border border-border/60 space-y-1">
-                    <span className="text-muted-foreground block text-[11px]">Video Codec</span>
+                    <span className="text-muted-foreground block text-[11px]">Codec</span>
                     <span className="text-foreground font-semibold">{video.video_codec}</span>
                   </div>
                   <div className="p-3 rounded-lg bg-secondary/50 border border-border/60 space-y-1">
-                    <span className="text-muted-foreground block text-[11px]">Audio Codec</span>
-                    <span className="text-foreground font-semibold">{video.audio_codec}</span>
+                    <span className="text-muted-foreground block text-[11px]">Profile</span>
+                    <span className="text-foreground font-semibold">{video.video_codec_profile || "Main"}</span>
                   </div>
                   <div className="p-3 rounded-lg bg-secondary/50 border border-border/60 space-y-1">
-                    <span className="text-muted-foreground block text-[11px]">Sample Rate</span>
-                    <span className="text-foreground font-semibold">
-                      {video.audio_sample_rate ? `${video.audio_sample_rate} Hz` : "48000 Hz"}
-                    </span>
+                    <span className="text-muted-foreground block text-[11px]">Frame Rate</span>
+                    <span className="text-foreground font-semibold">{video.fps.toFixed(2)} fps</span>
                   </div>
                   <div className="p-3 rounded-lg bg-secondary/50 border border-border/60 space-y-1">
-                    <span className="text-muted-foreground block text-[11px]">Channels</span>
-                    <span className="text-foreground font-semibold">
-                      {video.audio_channels === 1 ? "1 (Mono)" : "2 (Stereo)"}
-                    </span>
+                    <span className="text-muted-foreground block text-[11px]">Pixel Format</span>
+                    <span className="text-foreground font-semibold">{video.pixel_format || "yuv420p"}</span>
+                  </div>
+                  <div className="p-3 rounded-lg bg-secondary/50 border border-border/60 space-y-1">
+                    <span className="text-muted-foreground block text-[11px]">Bit Depth</span>
+                    <span className="text-foreground font-semibold">{video.bit_depth ? `${video.bit_depth}-bit` : "8-bit"}</span>
+                  </div>
+                  <div className="p-3 rounded-lg bg-secondary/50 border border-border/60 space-y-1">
+                    <span className="text-muted-foreground block text-[11px]">Rotation</span>
+                    <span className="text-foreground font-semibold">{video.rotation || 0}°</span>
                   </div>
                 </div>
 
-                <div className="mt-4 pt-3 border-t border-border/40 text-xs text-muted-foreground space-y-2">
+                <div className="pt-2 border-t border-border/40 text-xs text-muted-foreground space-y-2">
                   <div className="flex items-center justify-between">
-                    <span>File Size:</span>
-                    <span className="font-mono font-semibold text-foreground">
-                      {formatBytes(video.file_size_bytes)}
-                    </span>
+                    <span>Aspect Ratio:</span>
+                    <span className="font-mono font-semibold text-foreground">{video.aspect_ratio}</span>
                   </div>
                   <div className="flex items-center justify-between">
-                    <span>Storage Location:</span>
-                    <span className="font-mono text-zinc-300 text-[11px]">
-                      {video.storage_label || "Local SSD Storage"}
-                    </span>
+                    <span>Video Stream Bitrate:</span>
+                    <span className="font-mono font-semibold text-foreground">{formatBitrate(video.video_bitrate)}</span>
                   </div>
                 </div>
               </CardContent>
             </Card>
 
+            {/* Section D: Audio Stream Technical Details */}
             <Card>
               <CardHeader className="pb-3">
                 <CardTitle className="text-sm font-semibold flex items-center gap-2">
-                  <HardDrive className="h-4 w-4 text-emerald-400" />
+                  <Music className="h-4 w-4 text-emerald-400" />
+                  Audio Stream Characteristics
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {video.has_audio !== false && Boolean(video.audio_codec) ? (
+                  <>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-xs font-mono">
+                      <div className="p-3 rounded-lg bg-secondary/50 border border-border/60 space-y-1">
+                        <span className="text-muted-foreground block text-[11px]">Codec</span>
+                        <span className="text-foreground font-semibold">{video.audio_codec}</span>
+                      </div>
+                      <div className="p-3 rounded-lg bg-secondary/50 border border-border/60 space-y-1">
+                        <span className="text-muted-foreground block text-[11px]">Sample Rate</span>
+                        <span className="text-foreground font-semibold">
+                          {video.audio_sample_rate ? `${video.audio_sample_rate} Hz` : "48000 Hz"}
+                        </span>
+                      </div>
+                      <div className="p-3 rounded-lg bg-secondary/50 border border-border/60 space-y-1">
+                        <span className="text-muted-foreground block text-[11px]">Channels</span>
+                        <span className="text-foreground font-semibold">
+                          {video.audio_channels === 1 ? "1 (Mono)" : `${video.audio_channels ?? 2} (Stereo)`}
+                        </span>
+                      </div>
+                      <div className="p-3 rounded-lg bg-secondary/50 border border-border/60 space-y-1">
+                        <span className="text-muted-foreground block text-[11px]">Channel Layout</span>
+                        <span className="text-foreground font-semibold">{video.channel_layout || "stereo"}</span>
+                      </div>
+                      <div className="p-3 rounded-lg bg-secondary/50 border border-border/60 space-y-1 sm:col-span-2">
+                        <span className="text-muted-foreground block text-[11px]">Audio Bitrate</span>
+                        <span className="text-foreground font-semibold">{formatBitrate(video.audio_bitrate)}</span>
+                      </div>
+                    </div>
+
+                    <div className="pt-2 border-t border-border/40 text-xs text-muted-foreground space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span>Audio Stream Status:</span>
+                        <span className="font-mono text-emerald-400 font-medium">Active & Decodable</span>
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <div className="p-6 rounded-xl border border-dashed border-border bg-secondary/30 text-center space-y-2">
+                    <VolumeX className="h-6 w-6 text-muted-foreground mx-auto" />
+                    <h4 className="text-xs font-semibold text-foreground">No Audio Stream Detected</h4>
+                    <p className="text-[11px] text-muted-foreground max-w-xs mx-auto">
+                      This video does not contain an audio track. Faster-Whisper transcription and speech-based AI highlight analysis will be skipped for this asset.
+                    </p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Storage & Local Artifacts Summary */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <Card className="lg:col-span-1">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                  <HardDrive className="h-4 w-4 text-zinc-400" />
+                  Storage Integrity
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3 text-xs">
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">SSD Status:</span>
+                  <span className={video.file_exists ? "text-emerald-400 font-medium" : "text-amber-400 font-medium"}>
+                    {video.file_exists ? "File Verified on SSD" : "File Missing / Moved"}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">Storage Disk:</span>
+                  <span className="font-mono text-zinc-300 text-[11px]">
+                    {video.storage_label || "Local Workstation NVMe"}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">Imported:</span>
+                  <span className="font-mono text-foreground">
+                    {new Date(video.created_at).toLocaleDateString([], {
+                      month: "short",
+                      day: "numeric",
+                      year: "numeric",
+                    })}
+                  </span>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="lg:col-span-2">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                  <Layers className="h-4 w-4 text-emerald-400" />
                   Local Artifacts Summary
                 </CardTitle>
               </CardHeader>
@@ -448,24 +637,25 @@ export const VideoDetailPage: React.FC = () => {
                     Generated Transcript
                   </CardTitle>
                   <div className="flex items-center gap-3 text-xs font-mono text-muted-foreground">
-                    <span>Model: {transcript.model_name}</span>
-                    <span>Language: {transcript.language.toUpperCase()}</span>
-                    <span>Words: {transcript.word_count || "--"}</span>
+                    <span>Language: {transcript.language || "auto"}</span>
+                    <span>Words: {transcript.word_count}</span>
                   </div>
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="max-h-96 overflow-y-auto p-4 rounded-xl bg-secondary/30 border border-border text-xs leading-relaxed font-mono whitespace-pre-wrap text-foreground">
-                  {transcript.full_text || "No text available."}
+                <div className="p-4 rounded-lg bg-secondary/30 border border-border font-sans text-xs leading-relaxed text-foreground max-h-96 overflow-y-auto">
+                  {transcript.full_text || "No transcript text available."}
                 </div>
               </CardContent>
             </Card>
           ) : (
-            <div className="rounded-xl border border-dashed border-border bg-card/30 p-10 text-center space-y-3">
-              <FileText className="h-7 w-7 text-muted-foreground mx-auto" />
+            <div className="rounded-xl border border-dashed border-border bg-card/30 p-8 text-center space-y-2">
+              <FileText className="h-6 w-6 text-muted-foreground mx-auto" />
               <h3 className="text-sm font-semibold text-foreground">No Transcript Available</h3>
-              <p className="text-xs text-muted-foreground max-w-md mx-auto leading-relaxed">
-                This video has not yet been processed with Faster-Whisper. Audio extraction and transcription pipelines will execute in Phase 13.
+              <p className="text-xs text-muted-foreground max-w-md mx-auto">
+                {video.has_audio
+                  ? "This video has not yet been processed with local Faster-Whisper transcription. Audio transcription will be introduced in Phase 14."
+                  : "This video has no audio track, so no transcript can be generated."}
               </p>
             </div>
           )}
@@ -475,30 +665,41 @@ export const VideoDetailPage: React.FC = () => {
       {/* Tab 4: Highlights */}
       {activeTab === "highlights" && (
         <div className="pt-2">
-          {highlights.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {highlights.map((h) => (
-                <Card key={h.id} className="p-4 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold font-mono text-amber-400">
-                      Score: {h.composite_score.toFixed(1)}/100
-                    </span>
-                    <span className="text-xs text-muted-foreground font-mono">
-                      {formatDuration((h.duration_ms || (h.end_ms && h.start_ms ? h.end_ms - h.start_ms : 0)) / 1000)}
-                    </span>
-                  </div>
-                  <p className="text-xs font-semibold text-foreground">"{h.hook_sentence}"</p>
-                  <p className="text-xs text-muted-foreground line-clamp-2">{h.summary}</p>
-                </Card>
-              ))}
+          {highlights.length === 0 ? (
+            <div className="rounded-xl border border-dashed border-border bg-card/30 p-8 text-center space-y-2">
+              <Sparkles className="h-6 w-6 text-muted-foreground mx-auto" />
+              <h3 className="text-sm font-semibold text-foreground">No Highlights Detected</h3>
+              <p className="text-xs text-muted-foreground max-w-md mx-auto">
+                AI highlight candidate detection has not been executed on this asset yet.
+              </p>
             </div>
           ) : (
-            <div className="rounded-xl border border-dashed border-border bg-card/30 p-10 text-center space-y-3">
-              <Sparkles className="h-7 w-7 text-muted-foreground mx-auto" />
-              <h3 className="text-sm font-semibold text-foreground">No Highlights Extracted</h3>
-              <p className="text-xs text-muted-foreground max-w-md mx-auto leading-relaxed">
-                AI highlight candidate extraction and composite viral scoring will be performed in Phase 14 after transcript generation.
-              </p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {highlights.map((h) => {
+                const startSec = h.start_time ?? (h.start_ms ? h.start_ms / 1000 : 0);
+                const endSec = h.end_time ?? (h.end_ms ? h.end_ms / 1000 : 0);
+                return (
+                  <div key={h.id} className="p-4 rounded-xl border border-border bg-card space-y-2">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="font-semibold text-foreground truncate">
+                        {h.hook_sentence || h.summary || `Highlight #${h.rank || 1}`}
+                      </span>
+                      <span className="font-mono text-primary font-bold">
+                        Score: {(h.composite_score * 100).toFixed(0)}%
+                      </span>
+                    </div>
+                    <p className="text-xs text-muted-foreground line-clamp-2">
+                      {h.summary || h.explanation || "No description available."}
+                    </p>
+                    <div className="flex items-center justify-between text-[11px] font-mono text-zinc-400 pt-2 border-t border-border/50">
+                      <span>
+                        {formatDuration(startSec)} - {formatDuration(endSec)}
+                      </span>
+                      <span>Duration: {formatDuration(Math.max(0, endSec - startSec))}</span>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>
@@ -507,31 +708,30 @@ export const VideoDetailPage: React.FC = () => {
       {/* Tab 5: Clips */}
       {activeTab === "clips" && (
         <div className="pt-2">
-          {clips.length > 0 ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {clips.map((clip) => (
-                <div key={clip.id} className="p-4 rounded-xl border border-border bg-card space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-semibold text-foreground truncate">{clip.title}</span>
-                    <EntityStatusBadge status={clip.status} />
-                  </div>
-                  <div className="text-xs font-mono text-muted-foreground flex justify-between">
-                    <span>Duration: {formatDuration(clip.duration_ms / 1000)}</span>
-                    <span>{clip.aspect_ratio_mode}</span>
-                  </div>
-                  <Button asChild variant="outline" size="sm" className="w-full text-xs">
-                    <Link to={`/studio/${clip.id}`}>Open in Studio</Link>
-                  </Button>
-                </div>
-              ))}
+          {clips.length === 0 ? (
+            <div className="rounded-xl border border-dashed border-border bg-card/30 p-8 text-center space-y-2">
+              <Film className="h-6 w-6 text-muted-foreground mx-auto" />
+              <h3 className="text-sm font-semibold text-foreground">No Saved Clips</h3>
+              <p className="text-xs text-muted-foreground max-w-md mx-auto">
+                No short-form vertical or horizontal clips have been created from this video yet.
+              </p>
             </div>
           ) : (
-            <div className="rounded-xl border border-dashed border-border bg-card/30 p-10 text-center space-y-3">
-              <Film className="h-7 w-7 text-muted-foreground mx-auto" />
-              <h3 className="text-sm font-semibold text-foreground">No Clips Generated Yet</h3>
-              <p className="text-xs text-muted-foreground max-w-md mx-auto leading-relaxed">
-                No customized 9:16 short clips have been drafted from this video yet.
-              </p>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {clips.map((clip) => (
+                <div key={clip.id} className="p-4 rounded-xl border border-border bg-card space-y-2">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="font-semibold text-foreground truncate">{clip.title}</span>
+                    <EntityStatusBadge status={clip.status} />
+                  </div>
+                  <div className="text-[11px] font-mono text-muted-foreground flex items-center justify-between">
+                    <span>Ratio: {clip.aspect_ratio_mode}</span>
+                    <span>
+                      {formatDuration(clip.start_ms / 1000)} - {formatDuration(clip.end_ms / 1000)}
+                    </span>
+                  </div>
+                </div>
+              ))}
             </div>
           )}
         </div>
@@ -543,10 +743,11 @@ export const VideoDetailPage: React.FC = () => {
         onOpenChange={setShowDeleteModal}
         title="Delete Source Video"
         entityName={video.original_filename || video.filename}
-        consequences="Deleting this video will remove the record and all relational children (transcripts, highlights, draft clips). Rendered MP4 exports will be preserved on disk unless selected below."
+        consequences="This will delete the database record and cascade removal of all associated audio transcripts, AI highlights, and draft clips."
         showPurgeFilesOption={true}
         purgeFilesChecked={purgeFiles}
         onPurgeFilesToggle={setPurgeFiles}
+        purgeFilesLabel="Also permanently delete source video file from SSD storage"
         onConfirm={handleDelete}
         isDeleting={isDeleting}
       />

@@ -302,9 +302,23 @@ Every non-2xx HTTP response adheres strictly to this format:
 ### 5.3 `GET /api/v1/videos/{video_id}`
 - **Purpose:** Returns comprehensive technical stream metadata, audio characteristics, SSD file verification, child entity counts, and pipeline status for a video.
 - **Response Status:** `200 OK`.
-- **Response Schema Additions (Phase 11):**
+- **Response Schema Additions (Phase 13):**
+  - `container_format`: `str | null` (Container format, e.g. 'mov,mp4,m4a,3gp,3g2,mj2', 'matroska,webm').
+  - `bitrate`: `int | null` (Total container bitrate in bits/sec).
+  - `video_codec_profile`: `str | null` (e.g. 'High', 'Main', 'Baseline').
+  - `pixel_format`: `str | null` (e.g. 'yuv420p', 'yuv422p10le').
+  - `bit_depth`: `int | null` (Color bit depth, e.g. 8, 10).
+  - `video_bitrate`: `int | null` (Video stream bitrate in bits/sec).
+  - `rotation`: `int` (Display rotation angle: 0, 90, 180, 270).
+  - `orientation`: `str` ('landscape', 'portrait', 'square').
+  - `has_audio`: `bool` (True if media has at least one audio stream, False otherwise).
+  - `audio_codec`: `str | null` (Nullable; null if video has no audio).
   - `audio_sample_rate`: `int | null` (e.g., 44100, 48000 Hz).
   - `audio_channels`: `int | null` (e.g., 1 for mono, 2 for stereo).
+  - `channel_layout`: `str | null` (e.g., 'stereo', 'mono', '5.1').
+  - `audio_bitrate`: `int | null` (Audio stream bitrate in bits/sec).
+  - `metadata_status`: `str` ('PENDING', 'PROCESSING', 'COMPLETED', 'FAILED').
+  - `metadata_extracted_at`: `str | null` (ISO 8601 UTC timestamp).
   - `file_exists`: `bool` (Real-time SSD verification of raw video file existence).
   - `processing_jobs_count`: `int` (Total associated background pipeline tasks).
   - `clips_count`: `int` (Total clips cut or configured from this video).
@@ -313,15 +327,34 @@ Every non-2xx HTTP response adheres strictly to this format:
 - **Errors:** `404 Not Found`.
 
 ### 5.4 `GET /api/v1/videos/{video_id}/stream`
-- **Purpose:** Low-latency video streaming supporting HTTP Range headers (`206 Partial Content`) for browser scrubbing.
-- **Headers Handled:** `Range: bytes=0-1048575`.
-- **Response Status:** `206 Partial Content` (or `200 OK` if full stream requested).
+- **Purpose:** Workstation-grade low-latency video streaming supporting RFC 9110 HTTP Range requests (`206 Partial Content`) for browser scrubbing.
+- **Headers Handled:**
+  - Standard slice: `Range: bytes=0-1048575`
+  - Open-ended: `Range: bytes=1048576-`
+  - Suffix range: `Range: bytes=-500`
+- **Response Status:**
+  - `206 Partial Content` (for valid Range requests)
+  - `200 OK` (when Range header is omitted or malformed)
+  - `416 Range Not Satisfiable` (when requested range is out of file bounds)
 - **Headers Returned:**
-  - `Content-Range: bytes 0-1048575/1048576000`
+  - `Content-Range: bytes 0-1048575/1048576000` (on 206)
   - `Accept-Ranges: bytes`
-  - `Content-Type: video/mp4`
+  - `Content-Type: video/mp4` (or `video/webm`, `video/x-matroska`, `video/quicktime`)
+  - `Content-Length: <chunk_size>`
+- **Security & Concurrency:**
+  - Validates file resolution against `settings.STORAGE_DIR` to prevent path traversal attacks.
+  - Streams in bounded 128 KB chunks to prevent high memory consumption during large file scrubbing.
+- **Errors:** `404 Not Found`, `416 Range Not Satisfiable`.
 
-### 5.5 `DELETE /api/v1/videos/{video_id}`
+### 5.5 `POST /api/v1/videos/{video_id}/metadata/refresh`
+- **Purpose:** Triggers asynchronous re-probing of the source media file on disk via FFprobe and updates database stream characteristics.
+- **Concurrency Control:** Guarded by active extraction lock; concurrent requests for the same `video_id` are rejected with `409 Conflict`.
+- **Response Status:** `200 OK` with updated `VideoDetailResponse`.
+- **Errors:**
+  - `404 Not Found` (Video does not exist or physical file missing).
+  - `409 Conflict` (`EXTRACTION_ALREADY_IN_PROGRESS`).
+
+### 5.6 `DELETE /api/v1/videos/{video_id}`
 - **Purpose:** Deletes video metadata and triggers SQLite foreign key cascading deletion of child jobs, transcripts, transcript segments, highlights, and clips.
 - **Query Parameter:**
   - `purge_files`: `bool = false` (When true, safely unlinks the raw ingested video file on SSD; defaults to false to preserve disk media. Rendered exports in `storage/exports/` are strictly preserved per ADR-008 unless separately purged).

@@ -1,6 +1,7 @@
+from datetime import datetime
 from typing import List, Optional
 import uuid
-from sqlalchemy import BigInteger, CheckConstraint, Float, Index, Integer, String, Text
+from sqlalchemy import BigInteger, CheckConstraint, DateTime, Float, Index, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from backend.app.models.base import Base, TimestampMixin
 
@@ -23,11 +24,26 @@ class Video(Base, TimestampMixin):
     aspect_ratio: Mapped[str] = mapped_column(String(16), nullable=False)
     fps: Mapped[float] = mapped_column(Float, nullable=False)
     video_codec: Mapped[str] = mapped_column(String(32), nullable=False)
-    audio_codec: Mapped[str] = mapped_column(String(32), nullable=False)
-    audio_sample_rate: Mapped[int] = mapped_column(Integer, nullable=False)
-    audio_channels: Mapped[int] = mapped_column(Integer, nullable=False)
+    audio_codec: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)
+    audio_sample_rate: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    audio_channels: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     status: Mapped[str] = mapped_column(String(32), nullable=False, default="UPLOADED")
     error_message: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+    # Phase 13 Rich Metadata Fields
+    container_format: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    bitrate: Mapped[Optional[int]] = mapped_column(BigInteger, nullable=True)
+    video_codec_profile: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    pixel_format: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)
+    bit_depth: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    video_bitrate: Mapped[Optional[int]] = mapped_column(BigInteger, nullable=True)
+    rotation: Mapped[Optional[int]] = mapped_column(Integer, nullable=True, default=0)
+    channel_layout: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)
+    audio_bitrate: Mapped[Optional[int]] = mapped_column(BigInteger, nullable=True)
+    orientation: Mapped[Optional[str]] = mapped_column(String(16), nullable=True, default="landscape")
+    metadata_status: Mapped[str] = mapped_column(String(32), nullable=False, default="COMPLETED")
+    metadata_extracted_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    metadata_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
     # Relationships with CASCADE deletion
     processing_jobs: Mapped[List["ProcessingJob"]] = relationship(
