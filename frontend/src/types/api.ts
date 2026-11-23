@@ -80,6 +80,8 @@ export interface Video {
   metadata_extracted_at?: string | null;
   error_message?: string | null;
   file_exists?: boolean;
+  audio_asset?: AudioAsset | null;
+  audio_streams?: AudioStreamInfo[] | null;
   processing_jobs_count?: number;
   clips_count?: number;
   transcripts_count?: number;
@@ -112,6 +114,52 @@ export interface ProcessingJob {
   completed_at?: string | null;
   created_at: string;
   updated_at?: string | null;
+}
+
+export interface AudioStreamInfo {
+  index: number;
+  codec_name: string;
+  channels: number;
+  sample_rate: number;
+  channel_layout?: string | null;
+  bit_rate?: number | null;
+  language?: string | null;
+  title?: string | null;
+  is_default: boolean;
+}
+
+export interface AudioAsset {
+  id: string;
+  video_id: string;
+  job_id?: string | null;
+  filename: string;
+  format: string;
+  codec: string;
+  sample_rate: number;
+  channels: number;
+  channel_layout: string;
+  bit_depth: number;
+  duration_seconds: number;
+  file_size_bytes: number;
+  source_stream_index: number;
+  status: string;
+  error_message?: string | null;
+  created_at?: string | null;
+  updated_at?: string | null;
+}
+
+export interface AudioExtractionRequest {
+  stream_index?: number | null;
+  force_reextract?: boolean;
+}
+
+export interface AudioExtractionJobResponse {
+  job_id: string;
+  video_id: string;
+  status: string;
+  progress_percent: number;
+  current_step: string;
+  audio_asset?: AudioAsset | null;
 }
 
 export interface Transcript {

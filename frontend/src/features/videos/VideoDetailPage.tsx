@@ -19,6 +19,7 @@ import {
   CheckCircle2,
   AlertTriangle,
   Compass,
+  X,
 } from "lucide-react";
 import { PageContainer } from "../../components/layout/PageContainer";
 import { Card, CardHeader, CardTitle, CardContent } from "../../components/ui/card";
@@ -77,6 +78,13 @@ export const VideoDetailPage: React.FC = () => {
   const [purgeFiles, setPurgeFiles] = useState<boolean>(false);
   const [isDeleting, setIsDeleting] = useState<boolean>(false);
 
+  // Audio extraction state (Phase 14)
+  const [activeAudioJobId, setActiveAudioJobId] = useState<string | null>(null);
+  const [audioJob, setAudioJob] = useState<ProcessingJob | null>(null);
+  const [selectedStreamIndex, setSelectedStreamIndex] = useState<number | undefined>(undefined);
+  const [isExtractingAudio, setIsExtractingAudio] = useState<boolean>(false);
+  const [isCancellingAudio, setIsCancellingAudio] = useState<boolean>(false);
+
   const loadVideoDetails = useCallback(async () => {
     if (!id) return;
     setIsLoading(true);
@@ -96,6 +104,18 @@ export const VideoDetailPage: React.FC = () => {
 
       if (jobsRes.status === "fulfilled") {
         setJobs(jobsRes.value.items);
+        const runningAudio = jobsRes.value.items.find(
+          (j) =>
+            j.job_type === "AUDIO_EXTRACTION" &&
+            (j.status === "QUEUED" ||
+              j.status === "PROCESSING" ||
+              j.status === "queued" ||
+              j.status === "processing")
+        );
+        if (runningAudio) {
+          setActiveAudioJobId(runningAudio.id);
+          setAudioJob(runningAudio);
+        }
       }
       if (transcriptRes.status === "fulfilled") {
         setTranscript(transcriptRes.value);
@@ -122,6 +142,82 @@ export const VideoDetailPage: React.FC = () => {
   useEffect(() => {
     loadVideoDetails();
   }, [loadVideoDetails]);
+
+  // Audio extraction job polling
+  useEffect(() => {
+    if (!activeAudioJobId) return;
+
+    const interval = setInterval(async () => {
+      try {
+        const job = await api.jobs.get(activeAudioJobId);
+        if (!job || !job.status) return;
+        setAudioJob(job);
+        const st = job.status.toUpperCase();
+        if (st === "COMPLETED") {
+          clearInterval(interval);
+          setActiveAudioJobId(null);
+          setAudioJob(null);
+          toast.success("Audio Extraction Complete", "16kHz mono WAV asset generated and validated.");
+          loadVideoDetails();
+        } else if (st === "FAILED" || st === "CANCELLED") {
+          clearInterval(interval);
+          setActiveAudioJobId(null);
+          setAudioJob(null);
+          if (st === "FAILED") {
+            toast.error("Audio Extraction Failed", job.error_message || "FFmpeg extraction error.");
+          } else {
+            toast.info("Audio Extraction Cancelled", "Job was cancelled.");
+          }
+          loadVideoDetails();
+        }
+      } catch {
+        clearInterval(interval);
+        setActiveAudioJobId(null);
+        setAudioJob(null);
+      }
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [activeAudioJobId, loadVideoDetails, toast]);
+
+  const handleExtractAudio = async (force = false) => {
+    if (!id || !video) return;
+    setIsExtractingAudio(true);
+    try {
+      const res = await api.videos.extractAudio(id, {
+        stream_index: selectedStreamIndex,
+        force_reextract: force,
+      });
+
+      if (res.status === "COMPLETED" && res.audio_asset) {
+        toast.success("Audio Asset Ready", "Using validated 16kHz mono WAV asset.");
+        await loadVideoDetails();
+      } else {
+        setActiveAudioJobId(res.job_id);
+        toast.info("Audio Extraction Started", "Extracting 16kHz mono WAV for local transcription...");
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof ClipslyApiError ? err.detail : "Failed to start audio extraction.";
+      toast.error("Extraction Error", msg);
+    } finally {
+      setIsExtractingAudio(false);
+    }
+  };
+
+  const handleCancelAudioExtraction = async () => {
+    const targetJobId = activeAudioJobId || audioJob?.id;
+    if (!targetJobId) return;
+    setIsCancellingAudio(true);
+    try {
+      await api.jobs.cancel(targetJobId);
+      toast.info("Cancellation Requested", "Terminating FFmpeg extraction process...");
+    } catch (err: unknown) {
+      const msg = err instanceof ClipslyApiError ? err.detail : "Failed to cancel audio extraction.";
+      toast.error("Cancel Failed", msg);
+    } finally {
+      setIsCancellingAudio(false);
+    }
+  };
 
   const handleRefreshMetadata = async () => {
     if (!id) return;
@@ -514,6 +610,175 @@ export const VideoDetailPage: React.FC = () => {
               </CardContent>
             </Card>
           </div>
+
+          {/* Section: FFmpeg Audio Preprocessing Pipeline (Phase 14) */}
+          <Card className="border-border bg-card/60" data-testid="audio-extraction-card">
+            <CardHeader className="pb-3 flex flex-row items-center justify-between">
+              <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                <Music className="h-4 w-4 text-emerald-400" />
+                FFmpeg Audio Preprocessing (Phase 14: 16kHz Mono WAV)
+              </CardTitle>
+              {video.audio_asset && video.audio_asset.status === "COMPLETED" && !activeAudioJobId && (
+                <Badge variant="outline" className="gap-1 bg-emerald-500/10 text-emerald-400 border-emerald-500/30 font-mono text-[11px]" data-testid="audio-asset-ready-badge">
+                  <CheckCircle2 className="h-3 w-3" />
+                  Validated WAV Asset
+                </Badge>
+              )}
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {activeAudioJobId && audioJob ? (
+                <div className="space-y-3 p-4 rounded-xl border border-primary/30 bg-primary/5" data-testid="audio-extraction-progress">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <RefreshCw className="h-4 w-4 text-primary animate-spin" />
+                      <span className="text-xs font-semibold text-foreground">
+                        Extracting 16kHz Mono PCM Audio
+                      </span>
+                    </div>
+                    <span className="text-xs font-mono font-semibold text-primary">
+                      {audioJob.progress_percent.toFixed(0)}%
+                    </span>
+                  </div>
+
+                  <div className="w-full bg-secondary rounded-full h-2 overflow-hidden">
+                    <div
+                      className="bg-primary h-2 rounded-full transition-all duration-300"
+                      style={{ width: `${Math.max(5, audioJob.progress_percent)}%` }}
+                    />
+                  </div>
+
+                  <div className="flex items-center justify-between text-xs text-muted-foreground">
+                    <span className="font-mono text-[11px] truncate max-w-md">
+                      {audioJob.current_step || "Processing audio stream..."}
+                    </span>
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={handleCancelAudioExtraction}
+                      disabled={isCancellingAudio}
+                      className="h-7 text-xs gap-1"
+                      data-testid="cancel-audio-btn"
+                    >
+                      <X className="h-3 w-3" />
+                      <span>{isCancellingAudio ? "Cancelling..." : "Cancel Extraction"}</span>
+                    </Button>
+                  </div>
+                </div>
+              ) : video.audio_asset && video.audio_asset.status === "COMPLETED" ? (
+                <div className="space-y-4" data-testid="audio-asset-details">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 text-xs font-mono">
+                    <div className="p-3 rounded-lg bg-secondary/50 border border-border/60 space-y-1">
+                      <span className="text-muted-foreground block text-[11px]">Format / Container</span>
+                      <span className="text-foreground font-semibold">WAV (RIFF)</span>
+                    </div>
+                    <div className="p-3 rounded-lg bg-secondary/50 border border-border/60 space-y-1">
+                      <span className="text-muted-foreground block text-[11px]">Codec</span>
+                      <span className="text-foreground font-semibold">{video.audio_asset.codec}</span>
+                    </div>
+                    <div className="p-3 rounded-lg bg-secondary/50 border border-border/60 space-y-1">
+                      <span className="text-muted-foreground block text-[11px]">Sample Rate</span>
+                      <span className="text-emerald-400 font-semibold">{video.audio_asset.sample_rate.toLocaleString()} Hz</span>
+                    </div>
+                    <div className="p-3 rounded-lg bg-secondary/50 border border-border/60 space-y-1">
+                      <span className="text-muted-foreground block text-[11px]">Channels</span>
+                      <span className="text-emerald-400 font-semibold">1 (Mono)</span>
+                    </div>
+                    <div className="p-3 rounded-lg bg-secondary/50 border border-border/60 space-y-1">
+                      <span className="text-muted-foreground block text-[11px]">Bit Depth</span>
+                      <span className="text-foreground font-semibold">{video.audio_asset.bit_depth}-bit</span>
+                    </div>
+                    <div className="p-3 rounded-lg bg-secondary/50 border border-border/60 space-y-1">
+                      <span className="text-muted-foreground block text-[11px]">Duration</span>
+                      <span className="text-foreground font-semibold">{formatDuration(video.audio_asset.duration_seconds)}</span>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-border/40 text-xs">
+                    <div className="text-muted-foreground flex items-center gap-2">
+                      <HardDrive className="h-3.5 w-3.5 text-zinc-400" />
+                      <span>Audio Asset Size: <strong className="text-foreground font-mono">{formatBytes(video.audio_asset.file_size_bytes)}</strong></span>
+                      <span className="text-zinc-600">|</span>
+                      <span>Filename: <strong className="text-foreground font-mono">{video.audio_asset.filename}</strong></span>
+                    </div>
+
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleExtractAudio(true)}
+                      disabled={isExtractingAudio}
+                      className="h-7 text-xs gap-1.5"
+                      data-testid="reextract-audio-btn"
+                    >
+                      <RefreshCw className={`h-3 w-3 ${isExtractingAudio ? "animate-spin" : ""}`} />
+                      <span>{isExtractingAudio ? "Extracting..." : "Re-Extract Audio (Force)"}</span>
+                    </Button>
+                  </div>
+                </div>
+              ) : video.has_audio === false || !video.audio_codec ? (
+                <div className="p-4 rounded-xl border border-dashed border-border bg-secondary/20 text-center space-y-1.5" data-testid="no-audio-notice">
+                  <VolumeX className="h-5 w-5 text-muted-foreground mx-auto" />
+                  <p className="text-xs font-medium text-foreground">No Audio Streams Available</p>
+                  <p className="text-[11px] text-muted-foreground max-w-md mx-auto">
+                    This video lacks an audio track. Audio extraction and speech-to-text processing cannot be performed on this asset.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-4" data-testid="audio-extract-prompt">
+                  <p className="text-xs text-muted-foreground leading-relaxed">
+                    Convert this video's audio into the standardized <strong>16,000 Hz, 16-bit mono PCM WAV</strong> format required for high-accuracy local Faster-Whisper transcription.
+                  </p>
+
+                  {/* Audio Stream Selection if multiple streams exist */}
+                  {video.audio_streams && video.audio_streams.length > 1 && (
+                    <div className="p-3 rounded-lg border border-border bg-secondary/30 space-y-2">
+                      <span className="text-xs font-medium text-foreground block">Select Target Audio Stream:</span>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                        {video.audio_streams.map((stream) => (
+                          <label
+                            key={stream.index}
+                            className={`flex items-center gap-2 p-2 rounded border cursor-pointer transition-colors ${
+                              (selectedStreamIndex === undefined && stream.is_default) || selectedStreamIndex === stream.index
+                                ? "border-primary bg-primary/10 text-foreground"
+                                : "border-border/60 bg-card/60 text-muted-foreground hover:bg-card"
+                            }`}
+                          >
+                            <input
+                              type="radio"
+                              name="audio_stream"
+                              value={stream.index}
+                              checked={(selectedStreamIndex === undefined && stream.is_default) || selectedStreamIndex === stream.index}
+                              onChange={() => setSelectedStreamIndex(stream.index)}
+                              className="sr-only"
+                            />
+                            <div className="flex-1 font-mono text-[11px]">
+                              <span>Stream #{stream.index}: {stream.codec_name} ({stream.channels}ch, {stream.sample_rate}Hz)</span>
+                              {stream.language && <span className="text-muted-foreground ml-1">[{stream.language}]</span>}
+                              {stream.is_default && <span className="text-primary ml-1 font-semibold">(Default)</span>}
+                            </div>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="flex items-center justify-between pt-1">
+                    <span className="text-[11px] text-muted-foreground font-mono">Target: 16kHz mono WAV (pcm_s16le)</span>
+                    <Button
+                      variant="default"
+                      size="sm"
+                      onClick={() => handleExtractAudio(false)}
+                      disabled={isExtractingAudio || !video.file_exists}
+                      className="h-8 text-xs gap-1.5"
+                      data-testid="extract-audio-btn"
+                    >
+                      <Music className="h-3.5 w-3.5" />
+                      <span>{isExtractingAudio ? "Initializing..." : "Extract & Preprocess Audio"}</span>
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
 
           {/* Storage & Local Artifacts Summary */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

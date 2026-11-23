@@ -645,8 +645,52 @@ backend/tests/test_upload_api.py::test_duplicate_content_behavior PASSED [100%]
 
 ---
 
-## 13. Current Status & Next Steps
+## 13. Phase 14 Test Execution Log (FFmpeg Audio Extraction & Preprocessing Pipeline)
 
-- **Status:** PHASE 13 COMPLETED & VERIFIED.
-- **Active Suites:** 71 backend pytest tests passing (100%), 84 frontend Vitest tests passing (100%), ESLint clean (0 errors, 0 warnings), TypeScript build clean.
-- **Next Phase:** Proceed to Phase 14 (Audio Extraction & Faster-Whisper Transcription Pipeline) upon user approval.
+### 13.1 Backend Pytest Execution
+```powershell
+.venv\Scripts\python -m pytest backend/tests -v
+============================ 104 passed in 13.66s =============================
+```
+- **Tests Passing:** 104/104 (100%).
+- **Phase 14 Additions (33 new unit/integration tests):**
+  - Container inspection via FFprobe for MP4, MKV, WebM, MOV, and multi-stream audio containers.
+  - Primary and default audio stream selection with requested index matching and out-of-bounds error handling.
+  - WAV asset validation strictly verifying `pcm_s16le` codec, 16000Hz sample rate, 1 channel (mono), 16-bit depth, and non-zero duration.
+  - Real-time `-progress pipe:1` progress monitoring parsing microsecond offsets without process deadlock.
+  - Full audio extraction service pipeline converting stereo/multichannel tracks into standardized 16kHz mono WAV.
+  - Error and failure paths: missing file on disk, non-existent video ID, no audio stream in container, corrupt input file, path traversal attempt, and active extraction concurrency lock.
+  - Cancellation lifecycle: immediate FFmpeg process termination via `SIGKILL`, scratch temp file unlinking, and job status `CANCELLED`.
+  - API endpoints: `POST /api/v1/videos/{video_id}/extract-audio` (202 Accepted), `GET /api/v1/videos/{video_id}/audio` (200 OK / 404), `GET /api/v1/videos/{video_id}/audio/streams` (200 OK), and Video Details asset enrichment.
+  - Purge files cascade: `DELETE /api/v1/videos/{video_id}?purge_files=true` verified to unlink both raw video and generated WAV audio asset.
+
+### 13.2 Frontend Vitest Execution
+```powershell
+npm test -- --run
+Test Files  11 passed (11)
+     Tests  95 passed (95)
+  Duration  12.06s
+```
+- **Phase 14 Additions (11 new tests):**
+  - Audio Preprocessing card rendering on Video Details overview page.
+  - Idle state with explanation and "Extract & Preprocess Audio (16kHz WAV)" trigger.
+  - Honest "No Audio Streams Available" warning state when video has no audio tracks.
+  - Multi-stream radio selector allowing user to choose target audio stream.
+  - Active extraction progress bar with live percentage and step message.
+  - Extraction cancellation button triggering `POST /api/v1/jobs/{job_id}/cancel`.
+  - Validated WAV asset specifications grid (format, codec, 16,000 Hz, 1 (Mono), 16-bit, duration, size, filename).
+  - Force re-extraction button invoking API with `force_reextract: true`.
+  - Error handling toast and UI state recovery on failure.
+
+### 13.3 Code Quality & Production Build
+- **ESLint:** `npm run lint` passed with 0 errors and 0 warnings.
+- **TypeScript:** Strict typecheck `tsc -b` passed with 0 errors.
+- **Vite Production Build:** Compiled 1672 modules into production bundle (`dist/`) in 11.72s with zero errors.
+
+---
+
+## 14. Current Status & Next Steps
+
+- **Status:** PHASE 14 COMPLETED & VERIFIED.
+- **Active Suites:** 104 backend pytest tests passing (100%), 95 frontend Vitest tests passing (100%), ESLint clean (0 errors, 0 warnings), TypeScript build clean.
+- **Next Phase:** Strict Stop Condition Enforced. Awaiting explicit user approval before beginning Phase 15 (Faster-Whisper Speech-to-Text Pipeline).

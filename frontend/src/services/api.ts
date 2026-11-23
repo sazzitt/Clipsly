@@ -6,6 +6,10 @@
 
 import {
   ApiError,
+  AudioAsset,
+  AudioExtractionJobResponse,
+  AudioExtractionRequest,
+  AudioStreamInfo,
   Clip,
   DashboardSummary,
   ExportJob,
@@ -251,6 +255,16 @@ export const api = {
     refreshMetadata: (id: string, signal?: AbortSignal) =>
       request<Video>(`/videos/${id}/metadata/refresh`, { method: "POST", signal }),
     getStreamUrl: (id: string) => `${API_BASE_URL}/videos/${id}/stream`,
+    extractAudio: (id: string, options?: AudioExtractionRequest, signal?: AbortSignal) =>
+      request<AudioExtractionJobResponse>(`/videos/${id}/extract-audio`, {
+        method: "POST",
+        body: JSON.stringify(options || {}),
+        signal,
+      }),
+    getAudio: (id: string, signal?: AbortSignal) =>
+      request<AudioAsset>(`/videos/${id}/audio`, { method: "GET", signal }),
+    getAudioStreams: (id: string, signal?: AbortSignal) =>
+      request<AudioStreamInfo[]>(`/videos/${id}/audio/streams`, { method: "GET", signal }),
   },
 
   jobs: {

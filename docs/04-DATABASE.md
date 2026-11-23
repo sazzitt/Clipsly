@@ -41,6 +41,7 @@ The schema defines eight relational entities. All primary keys utilize canonical
 ├──────────────────────────┼──────────────────────────────────┤
 │ `videos`                 │ Master ingested video files      │
 │ `processing_jobs`        │ Pipeline task queue state        │
+│ `audio_assets`           │ 16kHz mono PCM WAV audio assets  │
 │ `transcripts`            │ Transcription run headers        │
 │ `transcript_segments`    │ Word-level timestamp utterances  │
 │ `highlights`             │ Algorithmic highlight candidates │
@@ -601,20 +602,51 @@ The backend implements an automated, non-blocking backup utility leveraging the 
 
 ---
 
+### 2.10 Entity 9: `audio_assets`
+Stores preprocessed, transcription-ready 16kHz mono PCM WAV audio assets extracted from source videos.
+
+```sql
+CREATE TABLE audio_assets (
+    id VARCHAR(36) PRIMARY KEY,
+    video_id VARCHAR(36) NOT NULL UNIQUE REFERENCES videos(id) ON DELETE CASCADE,
+    job_id VARCHAR(36) REFERENCES processing_jobs(id) ON DELETE SET NULL,
+    filename VARCHAR(255) NOT NULL,
+    file_path VARCHAR(512) NOT NULL UNIQUE,
+    file_size_bytes BIGINT NOT NULL,
+    duration_seconds FLOAT NOT NULL,
+    format VARCHAR(16) NOT NULL DEFAULT 'wav',
+    codec VARCHAR(32) NOT NULL DEFAULT 'pcm_s16le',
+    sample_rate INTEGER NOT NULL DEFAULT 16000,
+    channels INTEGER NOT NULL DEFAULT 1,
+    channel_layout VARCHAR(32) NOT NULL DEFAULT 'mono',
+    bit_depth INTEGER NOT NULL DEFAULT 16,
+    source_stream_index INTEGER NOT NULL DEFAULT 0,
+    status VARCHAR(32) NOT NULL DEFAULT 'COMPLETED',
+    error_message TEXT,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT chk_audio_size CHECK (file_size_bytes > 0),
+    CONSTRAINT chk_audio_duration CHECK (duration_seconds > 0.0),
+    CONSTRAINT chk_audio_sample_rate CHECK (sample_rate = 16000),
+    CONSTRAINT chk_audio_channels CHECK (channels = 1)
+);
+
+CREATE INDEX idx_audio_assets_video_id ON audio_assets(video_id);
+CREATE INDEX idx_audio_assets_status ON audio_assets(status);
+```
+
+---
+
 ## 11. Current Status & Next Steps
 
-- **Status:** **PHASE 12 COMPLETED & VERIFIED.**
+- **Status:** **PHASE 14 COMPLETED & VERIFIED.**
 - **Implementation Highlights:**
-  - Complete declarative ORM definitions for all 8 entities in `backend/app/models/`.
-  - Full relationship mapping with cascading deletion rules on parent models (`Video`, `Clip`).
-  - SQLite WAL mode and foreign key constraints enforced on every connection checkout.
-  - Phase 11 Project Management System: cascade deletion and safe SSD media purge flags.
-  - Phase 12 Local Video Upload & Ingestion Pipeline:
-    - Bounded streaming ingestion (1MB chunk buffers) into temporary scratch storage (`storage/temp/upload_{uuid}.tmp`).
-    - FFprobe container and stream validation (verifying video codec, audio codec, dimensions, framerate, duration bounds).
-    - Atomic file relocation: temporary scratch file moved to final destination (`storage/uploads/{video_id}.{ext}`) with strict path containment checks.
-    - Database registration: `Video` record inserted with `status='READY'`, original filename preserved, and technical metadata populated.
-    - Zero orphaned files: automated cleanup unlinks temporary scratch files upon failure, cancellation, or database rollback.
-    - Duplicate upload policy: uploads with matching original filenames receive distinct UUID storage filenames and independent database records.
-  - 42 backend pytest tests passing (100%) and 73 frontend Vitest tests passing (100%).
-- **Immediate Next Step:** Proceed to **Phase 13 (Audio Extraction & Media Metadata Pipeline)** upon user approval.
+  - Complete declarative ORM definitions for 9 entities in `backend/app/models/` (including `AudioAsset`).
+  - Migration `05adc4b773ff` creating `audio_assets` table with strict CHECK constraints (`sample_rate = 16000`, `channels = 1`, `duration_seconds > 0.0`, `file_size_bytes > 0`).
+  - Full 1-to-1 relationship mapping on `Video` model (`audio_asset`, cascade="all, delete-orphan").
+  - FFmpeg audio extraction pipeline converting input audio tracks to standardized 16kHz mono PCM WAV format (`pcm_s16le`).
+  - Real-time progress monitoring via `-progress pipe:1` parsing `out_time_us`.
+  - FFprobe post-extraction validation checking container, codec, channels, sample rate, and bit depth.
+  - Safe subprocess lifecycle with `SIGKILL` termination and scratch file cleanup on cancellation or failure.
+  - 104 backend pytest tests passing (100%) and 95 frontend Vitest tests passing (100%).
+- **Immediate Next Step:** Stop condition enforced. Awaiting explicit user approval before beginning **Phase 15 (Faster-Whisper Speech-to-Text Pipeline)**.

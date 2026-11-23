@@ -81,14 +81,14 @@ Every feature follows a disciplined 5-stage lifecycle:
 
 ## 4. Operational Status & Next Steps
 
-- **Status:** ACTIVE (Phase 12 Complete).
+- **Status:** ACTIVE (Phase 14 Complete).
 - **Current Baseline:**
-  - Backend: 8 SQLAlchemy ORM models, Alembic migrations (including `3a9c45884775` adding video metadata columns and nullable audio fields), 3 security and telemetry middlewares, 7 domain routers with full video streaming upload, RFC 9110 HTTP Range streaming, FFprobe metadata extraction, server-side search, filtering, allowlisted sorting, pagination, cascade management, and comprehensive failure cleanup; 71 pytest tests passing in 9.35s.
-  - Frontend: Workstation design system, 17 UI primitives, 9 workstation modules, 7 management components (`SearchInput`, `FilterSelect`, `SortSelector`, `PaginationControls`, `DeleteConfirmationDialog`, `NoResultsState`, `EntityStatusBadge`), custom HTML5 `VideoPlayer` component with scrubbing, volume, speed selector, keyboard shortcuts, and fullscreen, 6 complete feature views (`/`, `/videos`, `/video/:id`, `/upload`, `/jobs`, `/clips`, `/exports`), and 84 Vitest tests passing in 11.07s.
-  - Code Quality: ESLint clean (0 errors, 0 warnings), TypeScript strict check (`tsc -b`) passing with 0 errors, Vite production build clean in 12.31s.
+  - Backend: 9 SQLAlchemy ORM models, Alembic migrations (`05adc4b773ff` creating `audio_assets` table), 3 security and telemetry middlewares, 7 domain routers with full video streaming upload, RFC 9110 HTTP Range streaming, FFprobe metadata extraction, FFmpeg 16kHz mono WAV extraction, server-side search, filtering, allowlisted sorting, pagination, cascade management, and comprehensive failure cleanup; 104 pytest tests passing in 13.66s.
+  - Frontend: Workstation design system, 17 UI primitives, 9 workstation modules, 7 management components (`SearchInput`, `FilterSelect`, `SortSelector`, `PaginationControls`, `DeleteConfirmationDialog`, `NoResultsState`, `EntityStatusBadge`), custom HTML5 `VideoPlayer` component with scrubbing, volume, speed selector, keyboard shortcuts, and fullscreen, Audio Preprocessing module with stream selector, real-time extraction progress bar, cancel capability, and validated WAV specs display, 6 complete feature views (`/`, `/videos`, `/video/:id`, `/upload`, `/jobs`, `/clips`, `/exports`), and 95 Vitest tests passing in 12.06s.
+  - Code Quality: ESLint clean (0 errors, 0 warnings), TypeScript strict check (`tsc -b`) passing with 0 errors, Vite production build clean in 11.72s.
 - **Local Video Upload & Ingestion Pipeline Architecture (Phase 12):**
   - Chunked streaming upload (`POST /api/v1/videos/upload`) with 1MB bounded buffer, preventing memory spikes for files up to 10 GB.
-  - Asynchronous FFprobe verification validating container structure, video stream presence, audio track presence (with actual speech detection reserved for Phase 14 Faster-Whisper processing), dimensions, framerate, and duration bounds ($5\text{m}-120\text{m}$).
+  - Asynchronous FFprobe verification validating container structure, video stream presence, audio track presence (with actual speech detection reserved for Phase 15 Faster-Whisper processing), dimensions, framerate, and duration bounds ($5\text{m}-120\text{m}$).
   - Filesystem path privacy: internal filesystem paths are strictly withheld from API responses; safe storage labels are returned to the client instead.
   - Real-time network progress via `XMLHttpRequest.upload.onprogress` with true speed and remaining time calculations.
   - Safe scratch space lifecycle: scratch files in `storage/temp/` atomically moved to `storage/uploads/` on success, or unlinked immediately on failure or cancellation (zero orphaned files, zero orphaned DB records).
@@ -98,4 +98,12 @@ Every feature follows a disciplined 5-stage lifecycle:
   - RFC 9110 HTTP Range video streaming endpoint (`GET /api/v1/videos/{video_id}/stream`) with 128KB bounded streaming, 206 Partial Content, 416 Range Not Satisfiable, and storage path containment checks.
   - Interactive metadata refresh endpoint (`POST /api/v1/videos/{video_id}/metadata/refresh`) guarded against concurrent duplicate extraction runs (409 Conflict).
   - Workstation HTML5 video player component (`VideoPlayer.tsx`) with full playback controls, scrubber with buffered chunks, volume, playback speed dropdown, fullscreen, error recovery, and accessible keyboard shortcuts.
-- **Next Phase:** Phase 14 (Audio Extraction & Faster-Whisper Transcription Pipeline).
+- **FFmpeg Audio Extraction & Preprocessing Pipeline (Phase 14):**
+  - **Standardized Profile:** Extracts and resamples container audio to 16,000 Hz, 16-bit mono PCM WAV format (`pcm_s16le`) stored in `storage/audio/{uuid}.wav`.
+  - **ORM & Database:** `AudioAsset` entity created with Alembic migration `05adc4b773ff` and strict CHECK constraints (`sample_rate = 16000`, `channels = 1`, `duration_seconds > 0.0`, `file_size_bytes > 0`).
+  - **Subprocess Engine:** Non-blocking asynchronous FFmpeg execution with real-time machine-readable progress tracking via `-progress pipe:1` parsing `out_time_us`.
+  - **Job Lifecycle & Cancellation:** Integrated with `ProcessingJob(job_type='AUDIO_EXTRACTION')`; supports clean cancellation terminating active FFmpeg process and unlinking scratch files.
+  - **Stream Selection & Multi-Audio:** Detects all audio streams via FFprobe; supports selecting specific stream index or falling back to default/first audio stream.
+  - **Validation & Containment:** FFprobe verification on generated WAV ensuring exact codec, channel, and rate compliance; storage path traversal protection.
+  - **Frontend UI:** Dedicated Audio Preprocessing card on Video Details page with stream selector, extract button, real-time progress bar with cancel action, and validated WAV specifications display.
+- **Next Phase:** Phase 15 (Faster-Whisper Speech-to-Text Pipeline) - *Awaiting explicit user approval before beginning*.

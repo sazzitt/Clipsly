@@ -46,6 +46,9 @@ class Video(Base, TimestampMixin):
     metadata_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
     # Relationships with CASCADE deletion
+    audio_asset: Mapped[Optional["AudioAsset"]] = relationship(
+        "AudioAsset", back_populates="video", cascade="all, delete-orphan", uselist=False
+    )
     processing_jobs: Mapped[List["ProcessingJob"]] = relationship(
         "ProcessingJob", back_populates="video", cascade="all, delete-orphan"
     )

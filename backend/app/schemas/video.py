@@ -1,5 +1,7 @@
-from typing import Optional
+from typing import List, Optional
 from pydantic import BaseModel, ConfigDict
+
+from backend.app.schemas.audio import AudioAssetResponse, AudioStreamInfo
 
 
 class VideoUploadResponse(BaseModel):
@@ -60,6 +62,8 @@ class VideoDetailResponse(BaseModel):
     metadata_extracted_at: Optional[str] = None
     error_message: Optional[str] = None
     file_exists: bool = True
+    audio_asset: Optional[AudioAssetResponse] = None
+    audio_streams: Optional[List[AudioStreamInfo]] = None
     processing_jobs_count: int = 0
     clips_count: int = 0
     transcripts_count: int = 0

@@ -355,11 +355,70 @@ Every non-2xx HTTP response adheres strictly to this format:
   - `409 Conflict` (`EXTRACTION_ALREADY_IN_PROGRESS`).
 
 ### 5.6 `DELETE /api/v1/videos/{video_id}`
-- **Purpose:** Deletes video metadata and triggers SQLite foreign key cascading deletion of child jobs, transcripts, transcript segments, highlights, and clips.
+- **Purpose:** Deletes video metadata and triggers SQLite foreign key cascading deletion of child jobs, transcripts, transcript segments, highlights, clips, and audio assets.
 - **Query Parameter:**
-  - `purge_files`: `bool = false` (When true, safely unlinks the raw ingested video file on SSD; defaults to false to preserve disk media. Rendered exports in `storage/exports/` are strictly preserved per ADR-008 unless separately purged).
+  - `purge_files`: `bool = false` (When true, safely unlinks the raw ingested video file and extracted audio assets on SSD; defaults to false to preserve disk media. Rendered exports in `storage/exports/` are strictly preserved per ADR-008 unless separately purged).
 - **Response Status:** `200 OK` with JSON envelope: `{"success": true, "id": str, "file_unlinked": bool}`.
 - **Errors:** `404 Not Found`.
+
+### 5.7 `POST /api/v1/videos/{video_id}/extract-audio`
+- **Purpose:** Starts or queues background FFmpeg audio extraction converting video audio to standardized 16,000 Hz, 16-bit mono PCM WAV format for Faster-Whisper transcription.
+- **Request Body (`AudioExtractionRequest`):**
+  ```json
+  {
+    "stream_index": 1,
+    "force_reextract": false
+  }
+  ```
+- **Response Status:** `202 Accepted` (or `200 OK` if already completed and `force_reextract=false`).
+- **Response Schema (`AudioExtractionJobResponse`):**
+  ```json
+  {
+    "job_id": "9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d",
+    "video_id": "e4b2d188-7f3c-4a3a-96e7-8b0108ec73d4",
+    "status": "QUEUED",
+    "progress_percent": 0.0,
+    "current_step": "Audio extraction queued...",
+    "audio_asset": null
+  }
+  ```
+- **Errors:**
+  - `400 Bad Request` (Video has no audio stream to extract).
+  - `404 Not Found` (Video does not exist).
+  - `409 Conflict` (Audio extraction is already in progress for this video).
+  - `507 Insufficient Storage` (SSD free space < 10 GB).
+
+### 5.8 `GET /api/v1/videos/{video_id}/audio`
+- **Purpose:** Retrieves the preprocessed 16kHz mono PCM WAV audio asset metadata for an ingested video.
+- **Response Status:** `200 OK`.
+- **Response Schema (`AudioAssetResponse`):**
+  ```json
+  {
+    "id": "c1f2e3d4-b5a6-4789-8012-3456789abcde",
+    "video_id": "e4b2d188-7f3c-4a3a-96e7-8b0108ec73d4",
+    "job_id": "9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d",
+    "filename": "c1f2e3d4-b5a6-4789-8012-3456789abcde.wav",
+    "format": "wav",
+    "codec": "pcm_s16le",
+    "sample_rate": 16000,
+    "channels": 1,
+    "channel_layout": "mono",
+    "bit_depth": 16,
+    "duration_seconds": 1824.5,
+    "file_size_bytes": 58384000,
+    "source_stream_index": 1,
+    "status": "COMPLETED",
+    "error_message": null,
+    "created_at": "2026-11-23T14:05:00Z",
+    "updated_at": "2026-11-23T14:05:00Z"
+  }
+  ```
+- **Errors:** `404 Not Found` (No audio asset exists for this video).
+
+### 5.9 `GET /api/v1/videos/{video_id}/audio/streams`
+- **Purpose:** Inspects container audio streams via FFprobe and returns stream details including stream index, codec, channels, sample rate, layout, language tags, and default disposition.
+- **Response Status:** `200 OK`.
+- **Response Schema:** `List[AudioStreamInfo]`.
 
 ---
 

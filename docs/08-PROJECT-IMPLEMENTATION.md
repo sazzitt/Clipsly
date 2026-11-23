@@ -159,5 +159,21 @@ clipsly/
     - Full client cancellation support via `AbortController`.
     - Finalization spinner during FFprobe container validation.
     - Success summary card with direct one-click navigation to Video Details (`/video/:id`) and Video Library (`/videos`).
-  - **Quality Gates:** 51 backend pytest tests passing (100%); 73 frontend Vitest tests passing (100%); ESLint clean (0 errors, 0 warnings); TypeScript strict check (`tsc -b`) clean; Vite production build clean (8.44s).
-- **Execution Target:** Audio Extraction & Media Metadata Pipeline begins in **Phase 13**.
+  - **Quality Gates (Phase 12):** 51 backend pytest tests passing (100%); 73 frontend Vitest tests passing (100%); ESLint clean (0 errors, 0 warnings); TypeScript strict check (`tsc -b`) clean; Vite production build clean (8.44s).
+- **Video Preview & Metadata Extraction Pipeline (Phase 13):**
+  - Asynchronous FFprobe engine extracting comprehensive video stream attributes (codecs, profiles, pixel formats, bit depth, rotation, orientation, bitrates) and audio stream characteristics (codecs, channels, sample rate, layout).
+  - Handles audio-less videos honestly and gracefully with nullable audio schema and UI states.
+  - RFC 9110 HTTP Range video streaming endpoint (`GET /api/v1/videos/{video_id}/stream`) with 128KB bounded streaming, 206 Partial Content, 416 Range Not Satisfiable, and storage path containment checks.
+  - Interactive metadata refresh endpoint (`POST /api/v1/videos/{video_id}/metadata/refresh`) guarded against concurrent duplicate extraction runs (409 Conflict).
+  - Workstation HTML5 video player component (`VideoPlayer.tsx`) with full playback controls, scrubber with buffered chunks, volume, playback speed dropdown, fullscreen, error recovery, and accessible keyboard shortcuts.
+  - Quality Gates: 71 backend pytest tests passing (100%); 84 frontend Vitest tests passing (100%).
+- **FFmpeg Audio Extraction & Preprocessing Pipeline (Phase 14):**
+  - **Standardized Profile:** Extracts and resamples container audio to 16,000 Hz, 16-bit mono PCM WAV format (`pcm_s16le`) stored in `storage/audio/{uuid}.wav`.
+  - **ORM & Database:** `AudioAsset` entity created with Alembic migration `05adc4b773ff` and strict CHECK constraints (`sample_rate = 16000`, `channels = 1`, `duration_seconds > 0.0`, `file_size_bytes > 0`).
+  - **Subprocess Engine:** Non-blocking asynchronous FFmpeg execution with real-time machine-readable progress tracking via `-progress pipe:1` parsing `out_time_us`.
+  - **Job Lifecycle & Cancellation:** Integrated with `ProcessingJob(job_type='AUDIO_EXTRACTION')`; supports clean cancellation terminating active FFmpeg process and unlinking scratch files.
+  - **Stream Selection & Multi-Audio:** Detects all audio streams via FFprobe; supports selecting specific stream index or falling back to default/first audio stream.
+  - **Validation & Containment:** FFprobe verification on generated WAV ensuring exact codec, channel, and rate compliance; storage path traversal protection.
+  - **Frontend UI:** Dedicated Audio Preprocessing card on Video Details page with stream selector, extract button, real-time progress bar with cancel action, and validated WAV specifications display.
+  - **Quality Gates:** 104 backend pytest tests passing (100%); 95 frontend Vitest tests passing (100%); ESLint clean (0 errors, 0 warnings); TypeScript strict check (`tsc -b`) clean; Vite production build clean (11.72s).
+- **Execution Target:** **Phase 14 COMPLETE & VERIFIED.** Stop condition enforced; awaiting explicit user approval before beginning Phase 15 (Faster-Whisper Speech-to-Text Pipeline).

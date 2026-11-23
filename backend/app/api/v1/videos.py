@@ -1,6 +1,9 @@
+import asyncio
 import os
+import uuid
+from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, Depends, File, Query, Request, Response, UploadFile, status
 from fastapi.responses import StreamingResponse
 from sqlalchemy import func, or_, select
@@ -8,14 +11,26 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.app.api.dependencies import get_database
 from backend.app.core.config import settings
-from backend.app.core.exceptions import AppException, InvalidFileFormatError, NotFoundError
+from backend.app.core.exceptions import AppException, ConflictError, InvalidFileFormatError, NotFoundError
+from backend.app.models.audio_asset import AudioAsset
 from backend.app.models.clip import Clip
 from backend.app.models.highlight import Highlight
 from backend.app.models.processing_job import ProcessingJob
 from backend.app.models.transcript import Transcript
 from backend.app.models.video import Video
+from backend.app.schemas.audio import (
+    AudioAssetResponse,
+    AudioExtractionJobResponse,
+    AudioExtractionRequest,
+    AudioStreamInfo,
+)
 from backend.app.schemas.common import PaginatedResponse
 from backend.app.schemas.video import VideoDetailResponse, VideoUploadResponse
+from backend.app.services.audio_extraction import (
+    _active_extractions,
+    extract_and_preprocess_audio,
+    inspect_audio_streams,
+)
 from backend.app.services.metadata_extraction import extract_and_persist_metadata
 from backend.app.services.video_ingestion import ingest_video
 
@@ -153,11 +168,48 @@ async def _build_video_detail_response(video: Video, db: AsyncSession) -> VideoD
 
     # Verify physical file existence on disk
     file_exists = False
+    resolved_path = None
     if video.file_path:
         p = Path(video.file_path)
         if not p.is_absolute():
             p = settings.STORAGE_DIR.parent / video.file_path
-        file_exists = p.exists()
+        resolved_path = p.resolve()
+        file_exists = resolved_path.exists()
+
+    # Fetch AudioAsset if exists
+    stmt_audio = select(AudioAsset).where(AudioAsset.video_id == video_id)
+    res_audio = await db.execute(stmt_audio)
+    audio_asset = res_audio.scalar_one_or_none()
+    audio_asset_resp = None
+    if audio_asset:
+        audio_asset_resp = AudioAssetResponse(
+            id=audio_asset.id,
+            video_id=audio_asset.video_id,
+            job_id=audio_asset.job_id,
+            filename=audio_asset.filename,
+            format=audio_asset.format,
+            codec=audio_asset.codec,
+            sample_rate=audio_asset.sample_rate,
+            channels=audio_asset.channels,
+            channel_layout=audio_asset.channel_layout,
+            bit_depth=audio_asset.bit_depth,
+            duration_seconds=audio_asset.duration_seconds,
+            file_size_bytes=audio_asset.file_size_bytes,
+            source_stream_index=audio_asset.source_stream_index,
+            status=audio_asset.status,
+            error_message=audio_asset.error_message,
+            created_at=audio_asset.created_at.isoformat() if audio_asset.created_at else None,
+            updated_at=audio_asset.updated_at.isoformat() if audio_asset.updated_at else None,
+        )
+
+    # Inspect container audio streams if file exists
+    audio_streams = None
+    if file_exists and resolved_path:
+        try:
+            raw_streams = await inspect_audio_streams(resolved_path)
+            audio_streams = [AudioStreamInfo(**s) for s in raw_streams]
+        except Exception:
+            audio_streams = None
 
     has_audio = bool(video.audio_codec and video.audio_codec.lower() not in ("none", "unknown", ""))
 
@@ -192,6 +244,8 @@ async def _build_video_detail_response(video: Video, db: AsyncSession) -> VideoD
         metadata_extracted_at=video.metadata_extracted_at.isoformat() if video.metadata_extracted_at else None,
         error_message=video.error_message,
         file_exists=file_exists,
+        audio_asset=audio_asset_resp,
+        audio_streams=audio_streams,
         processing_jobs_count=jobs_count,
         clips_count=clips_count,
         transcripts_count=transcripts_count,
@@ -360,6 +414,186 @@ async def stream_video(
     return StreamingResponse(range_stream(), status_code=status.HTTP_206_PARTIAL_CONTENT, headers=headers, media_type=media_type)
 
 
+@router.post(
+    "/{video_id}/extract-audio",
+    response_model=AudioExtractionJobResponse,
+    status_code=status.HTTP_202_ACCEPTED,
+    summary="Extract & Preprocess Audio",
+    description="Starts or queues a background FFmpeg audio extraction job converting video audio into 16kHz mono PCM WAV."
+)
+async def extract_audio_endpoint(
+    video_id: str,
+    body: Optional[AudioExtractionRequest] = None,
+    db: AsyncSession = Depends(get_database)
+):
+    """Triggers extraction of transcription-ready WAV audio asset for an ingested video."""
+    body = body or AudioExtractionRequest()
+    stmt = select(Video).where(Video.id == video_id)
+    result = await db.execute(stmt)
+    video = result.scalar_one_or_none()
+
+    if not video:
+        raise NotFoundError(f"Video with id '{video_id}' was not found.")
+
+    if not video.file_path:
+        raise NotFoundError("Video record contains no physical storage path.")
+
+    # Check if video has audio
+    has_audio = bool(video.audio_codec and video.audio_codec.lower() not in ("none", "unknown", ""))
+    if not has_audio:
+        raise InvalidFileFormatError("Video file contains no audio streams to extract.")
+
+    # If already extracted and force_reextract is False
+    if not body.force_reextract:
+        stmt_audio = select(AudioAsset).where(AudioAsset.video_id == video_id)
+        res_audio = await db.execute(stmt_audio)
+        existing_asset = res_audio.scalar_one_or_none()
+        if existing_asset and Path(existing_asset.file_path).exists():
+            asset_resp = AudioAssetResponse(
+                id=existing_asset.id,
+                video_id=existing_asset.video_id,
+                job_id=existing_asset.job_id,
+                filename=existing_asset.filename,
+                format=existing_asset.format,
+                codec=existing_asset.codec,
+                sample_rate=existing_asset.sample_rate,
+                channels=existing_asset.channels,
+                channel_layout=existing_asset.channel_layout,
+                bit_depth=existing_asset.bit_depth,
+                duration_seconds=existing_asset.duration_seconds,
+                file_size_bytes=existing_asset.file_size_bytes,
+                source_stream_index=existing_asset.source_stream_index,
+                status=existing_asset.status,
+                error_message=existing_asset.error_message,
+                created_at=existing_asset.created_at.isoformat() if existing_asset.created_at else None,
+                updated_at=existing_asset.updated_at.isoformat() if existing_asset.updated_at else None,
+            )
+            return AudioExtractionJobResponse(
+                job_id=existing_asset.job_id or str(uuid.uuid4()),
+                video_id=video_id,
+                status="COMPLETED",
+                progress_percent=100.0,
+                current_step="Audio already extracted and ready",
+                audio_asset=asset_resp,
+            )
+
+    # Check if already active
+    if video_id in _active_extractions:
+        raise ConflictError(
+            f"Audio extraction is already in progress for video '{video_id}'.",
+            details={"video_id": video_id},
+        )
+
+    # Create job in database
+    job_id = str(uuid.uuid4())
+    job = ProcessingJob(
+        id=job_id,
+        video_id=video_id,
+        job_type="AUDIO_EXTRACTION",
+        status="QUEUED",
+        progress_percent=0.0,
+        current_step="Audio extraction queued...",
+        started_at=datetime.now(timezone.utc),
+    )
+    db.add(job)
+    await db.commit()
+
+    # Launch background extraction task
+    asyncio.create_task(
+        extract_and_preprocess_audio(
+            video_id=video_id,
+            stream_index=body.stream_index,
+            job_id=job_id,
+            force_reextract=body.force_reextract,
+        )
+    )
+
+    return AudioExtractionJobResponse(
+        job_id=job_id,
+        video_id=video_id,
+        status="QUEUED",
+        progress_percent=0.0,
+        current_step="Audio extraction queued...",
+    )
+
+
+@router.get(
+    "/{video_id}/audio",
+    response_model=AudioAssetResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Get Extracted Audio Asset",
+    description="Retrieves the 16kHz mono PCM WAV audio asset metadata for a video."
+)
+async def get_video_audio(
+    video_id: str,
+    db: AsyncSession = Depends(get_database)
+):
+    """Fetches the preprocessed AudioAsset record for a video."""
+    stmt = select(AudioAsset).where(AudioAsset.video_id == video_id)
+    res = await db.execute(stmt)
+    asset = res.scalar_one_or_none()
+
+    if not asset:
+        raise NotFoundError(f"No audio asset found for video '{video_id}'.")
+
+    return AudioAssetResponse(
+        id=asset.id,
+        video_id=asset.video_id,
+        job_id=asset.job_id,
+        filename=asset.filename,
+        format=asset.format,
+        codec=asset.codec,
+        sample_rate=asset.sample_rate,
+        channels=asset.channels,
+        channel_layout=asset.channel_layout,
+        bit_depth=asset.bit_depth,
+        duration_seconds=asset.duration_seconds,
+        file_size_bytes=asset.file_size_bytes,
+        source_stream_index=asset.source_stream_index,
+        status=asset.status,
+        error_message=asset.error_message,
+        created_at=asset.created_at.isoformat() if asset.created_at else None,
+        updated_at=asset.updated_at.isoformat() if asset.updated_at else None,
+    )
+
+
+@router.get(
+    "/{video_id}/audio/streams",
+    response_model=List[AudioStreamInfo],
+    status_code=status.HTTP_200_OK,
+    summary="List Video Audio Streams",
+    description="Inspects container audio streams via FFprobe and returns stream details including channels and layout."
+)
+async def get_video_audio_streams(
+    video_id: str,
+    db: AsyncSession = Depends(get_database)
+):
+    """Inspects container audio streams via FFprobe."""
+    stmt = select(Video).where(Video.id == video_id)
+    result = await db.execute(stmt)
+    video = result.scalar_one_or_none()
+
+    if not video:
+        raise NotFoundError(f"Video with id '{video_id}' was not found.")
+
+    if not video.file_path:
+        raise NotFoundError("Video record contains no physical storage path.")
+
+    file_path = Path(video.file_path)
+    if not file_path.is_absolute():
+        file_path = settings.STORAGE_DIR.parent / video.file_path
+
+    resolved_path = file_path.resolve()
+    if not resolved_path.is_relative_to(settings.STORAGE_DIR.resolve()):
+        raise AppException(status_code=400, detail="Path traversal security violation detected.")
+
+    if not resolved_path.exists():
+        raise NotFoundError(f"Physical video file was not found on local storage disk ({resolved_path.name}).")
+
+    raw_streams = await inspect_audio_streams(resolved_path)
+    return [AudioStreamInfo(**s) for s in raw_streams]
+
+
 @router.delete(
     "/{video_id}",
     status_code=status.HTTP_200_OK,
@@ -368,7 +602,7 @@ async def stream_video(
 )
 async def delete_video(
     video_id: str,
-    purge_files: bool = Query(False, description="Also purge source video file from disk if present"),
+    purge_files: bool = Query(False, description="Also purge source video file and audio assets from disk if present"),
     db: AsyncSession = Depends(get_database)
 ):
     """Deletes a video from the database, cascading relational children."""
@@ -380,13 +614,24 @@ async def delete_video(
         raise NotFoundError(f"Video with id '{video_id}' was not found.")
 
     file_unlinked = False
-    if purge_files and video.file_path:
-        try:
-            if os.path.exists(video.file_path):
-                os.remove(video.file_path)
-                file_unlinked = True
-        except OSError:
-            pass
+    if purge_files:
+        if video.file_path:
+            try:
+                if os.path.exists(video.file_path):
+                    os.remove(video.file_path)
+                    file_unlinked = True
+            except OSError:
+                pass
+
+        stmt_audio = select(AudioAsset).where(AudioAsset.video_id == video_id)
+        res_audio = await db.execute(stmt_audio)
+        audio_asset = res_audio.scalar_one_or_none()
+        if audio_asset and audio_asset.file_path:
+            try:
+                if os.path.exists(audio_asset.file_path):
+                    os.remove(audio_asset.file_path)
+            except OSError:
+                pass
 
     await db.delete(video)
     await db.commit()

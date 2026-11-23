@@ -151,11 +151,15 @@ async def cancel_job(
     if job.status in ("COMPLETED", "FAILED", "CANCELLED"):
         raise ConflictError(f"Job '{job_id}' is already in terminal state '{job.status}' and cannot be cancelled.")
 
-    job.status = "CANCELLED"
-    job.current_step = "Cancelled by user"
-    job.completed_at = datetime.now(timezone.utc)
-    await db.commit()
-    await db.refresh(job)
+    if job.job_type == "AUDIO_EXTRACTION":
+        from backend.app.services.audio_extraction import cancel_audio_extraction
+        await cancel_audio_extraction(job_id, db)
+    else:
+        job.status = "CANCELLED"
+        job.current_step = "Cancelled by user"
+        job.completed_at = datetime.now(timezone.utc)
+        await db.commit()
+        await db.refresh(job)
 
     return {
         "id": job.id,

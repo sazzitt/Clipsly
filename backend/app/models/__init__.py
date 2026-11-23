@@ -1,5 +1,6 @@
 from backend.app.models.base import Base, TimestampMixin
 from backend.app.models.video import Video
+from backend.app.models.audio_asset import AudioAsset
 from backend.app.models.processing_job import ProcessingJob
 from backend.app.models.transcript import Transcript
 from backend.app.models.transcript_segment import TranscriptSegment
@@ -12,6 +13,7 @@ __all__ = [
     "Base",
     "TimestampMixin",
     "Video",
+    "AudioAsset",
     "ProcessingJob",
     "Transcript",
     "TranscriptSegment",

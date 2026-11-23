@@ -74,6 +74,10 @@ class Settings(BaseSettings):
         return self.STORAGE_DIR / "cache"
 
     @property
+    def AUDIO_DIR(self) -> Path:
+        return self.STORAGE_DIR / "audio"
+
+    @property
     def TEMP_DIR(self) -> Path:
         return self.STORAGE_DIR / "temp"
 
@@ -86,6 +90,7 @@ class Settings(BaseSettings):
         self.EXPORT_DIR.mkdir(parents=True, exist_ok=True)
         self.CACHE_DIR.mkdir(parents=True, exist_ok=True)
         self.TEMP_DIR.mkdir(parents=True, exist_ok=True)
+        self.AUDIO_DIR.mkdir(parents=True, exist_ok=True)
 
 
 settings = Settings()
