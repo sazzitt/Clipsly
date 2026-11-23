@@ -648,14 +648,14 @@ CREATE INDEX idx_audio_assets_status ON audio_assets(status);
 
 ## 11. Current Status & Next Steps
 
-- **Status:** **PHASE 14 COMPLETED & VERIFIED.**
-- **Implementation Highlights:**
-  - Complete declarative ORM definitions for 9 entities in `backend/app/models/` (including `AudioAsset`).
-  - Migration `05adc4b773ff` creating `audio_assets` table with strict CHECK constraints (`sample_rate = 16000`, `channels = 1`, `duration_seconds > 0.0`, `file_size_bytes > 0`).
-  - Full 1-to-1 relationship mapping on `Video` model (`audio_asset`, cascade="all, delete-orphan").
-  - FFmpeg audio extraction pipeline converting input audio tracks to standardized 16kHz mono PCM WAV format (`pcm_s16le`).
-  - Real-time progress monitoring via `-progress pipe:1` parsing `out_time_us`.
-  - FFprobe post-extraction validation checking container, codec, channels, sample rate, and bit depth.
-  - Safe subprocess lifecycle with `SIGKILL` termination and scratch file cleanup on cancellation or failure.
-  - 104 backend pytest tests passing (100%) and 95 frontend Vitest tests passing (100%).
-- **Immediate Next Step:** Stop condition enforced. Awaiting explicit user approval before beginning **Phase 15 (Faster-Whisper Speech-to-Text Pipeline)**.
+- **Status:** **PHASE 17 COMPLETED & VERIFIED. PHASE 18 (SUBTITLE ENGINE) ARCHITECTURE ACTIVE.**
+- **Implementation Highlights (Phases 15–17):**
+  - **Phase 15 (Faster-Whisper STT):** Word-level transcription persisted in `transcripts` and `transcript_segments` with JSON arrays of word timings.
+  - **Phase 16 (AI Highlights):** Heuristic highlight detection persisting candidate and accepted moments in `highlights` table.
+  - **Phase 17 (Clip Editing & Vertical Conversion):** Automatic clip generation and 9:16 vertical conversion (`BLUR_PAD`, `CROP_CENTER`, `FIT_LETTERBOX`) with metadata in `clips` table.
+- **Phase 18 Subtitle Schema Architecture (Designed in Phase 18.1):**
+  - Proposes `subtitle_tracks` table (1-to-many from `clips`, tracks preset, ASS file path, compile status).
+  - Proposes `subtitle_events` table (1-to-many from `subtitle_tracks`, stores line bursts with word-level karaoke timing for non-destructive studio editing).
+  - Proposes `subtitle_presets` declarative configuration table.
+  - See `docs/19-SUBTITLE-API-CONTRACTS.md` for full schema specifications and indices.
+- **Next Step:** Proceed to **Phase 18.2 (Subtitle Engine Implementation)** upon user approval.

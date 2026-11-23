@@ -25,6 +25,11 @@ All project requirements, architecture specifications, database designs, API con
 | [13-INTEGRATIONS.md](file:///c:/Users/SAJIT%20THAKUR/OneDrive/Pictures/Documents/clipsly/docs/13-INTEGRATIONS.md) | **Subprocess & Library Integrations** | Detailed integration contracts for FFmpeg/FFprobe, Faster-Whisper, Silero VAD, NVIDIA NVENC, and managed subprocess isolation. | Phase 06–16 | **FINALIZED (ADR-006)** |
 | [14-TESTING-AND-QA.md](file:///c:/Users/SAJIT%20THAKUR/OneDrive/Pictures/Documents/clipsly/docs/14-TESTING-AND-QA.md) | **Testing Strategy & QA Plan** | Backend test suite (pytest), frontend build & lint verification, health check testing, and automated foundation validator script. | Phase 06 / 19 | **ACTIVE (PHASE 06 SUITE PASSING)** |
 | [15-DEBUGGING.md](file:///c:/Users/SAJIT%20THAKUR/OneDrive/Pictures/Documents/clipsly/docs/15-DEBUGGING.md) | **Troubleshooting & Diagnostics** | Diagnostic playbooks for CUDA OOM errors, missing FFmpeg codecs, long Windows path issues, greenlet async SQLite, and subprocess hangs. | Phase 06 / 18 | **ACTIVE (FOUNDATION PLAYBOOKS ADDED)** |
+| [16-HIGHLIGHT-INTELLIGENCE.md](file:///c:/Users/SAJIT%20THAKUR/OneDrive/Pictures/Documents/clipsly/docs/16-HIGHLIGHT-INTELLIGENCE.md) | **AI Highlight Intelligence Specification** | Heuristic feature extractor, 4D scoring engine, non-maximum suppression deduplication, and candidate generation. | Phase 16 | **COMPLETE & VERIFIED** |
+| [16-SUBTITLE-ENGINE.md](file:///c:/Users/SAJIT%20THAKUR/OneDrive/Pictures/Documents/clipsly/docs/16-SUBTITLE-ENGINE.md) | **Subtitle & Caption Engine Architecture** | End-to-end subtitle architecture, transcript synchronization, word-level timing, chunking, and FFmpeg burn-in strategy. | Phase 18.1 | **COMPLETE (PHASE 18.1 ACTIVE)** |
+| [17-ASS-FORMAT-SPECIFICATION.md](file:///c:/Users/SAJIT%20THAKUR/OneDrive/Pictures/Documents/clipsly/docs/17-ASS-FORMAT-SPECIFICATION.md) | **ASS Subtitle Format Specification** | Canonical ASS v4.00+ standard, karaoke \k tags, timing formulas, color notation, and Windows escaping rules. | Phase 18.1 | **COMPLETE (PHASE 18.1 ACTIVE)** |
+| [18-CAPTION-DESIGN-SYSTEM.md](file:///c:/Users/SAJIT%20THAKUR/OneDrive/Pictures/Documents/clipsly/docs/18-CAPTION-DESIGN-SYSTEM.md) | **Caption Design System & Presets** | 6 typography presets (Minimal, Modern, Bold, Karaoke Amber, Podcast, Cinematic), mobile safe zones, and CSS mappings. | Phase 18.1 | **COMPLETE (PHASE 18.1 ACTIVE)** |
+| [19-SUBTITLE-API-CONTRACTS.md](file:///c:/Users/SAJIT%20THAKUR/OneDrive/Pictures/Documents/clipsly/docs/19-SUBTITLE-API-CONTRACTS.md) | **Subtitle API Contracts & Data Models** | REST endpoints, Pydantic v2 schemas, SQLite subtitle_tracks/events/presets schema, and error envelopes. | Phase 18.1 | **COMPLETE (PHASE 18.1 ACTIVE)** |
 
 ---
 
@@ -66,10 +71,10 @@ All project requirements, architecture specifications, database designs, API con
 - [x] **Phase 11:** Project Management System *(Completed & Verified)*
 - [x] **Phase 12:** Local Video Upload & Ingestion Pipeline *(Completed & Verified)*
 - [x] **Phase 13:** Video Preview & Metadata Extraction *(Completed & Verified)*
-- [ ] **Phase 14:** Audio Extraction & Faster-Whisper Transcription Pipeline *(Next)*
-- [ ] **Phase 15:** Candidate Selection & Clip Timestamp Generator
-- [ ] **Phase 16:** FFmpeg Cutting & Clip Generation Engine
-- [ ] **Phase 17:** Vertical 9:16 Re-Framing Engine (Crop & Blur-Fill)
-- [ ] **Phase 18:** Subtitle Generation & Karaoke Styler (.ass/burned-in)
+- [x] **Phase 14:** Audio Extraction & Preprocessing Pipeline *(Completed & Verified)*
+- [x] **Phase 15:** Faster-Whisper Speech-to-Text Transcription Engine *(Completed & Verified)*
+- [x] **Phase 16:** AI Highlight Detection & Clip Intelligence Engine *(Completed & Verified)*
+- [x] **Phase 17:** Automatic Clip Editing & Vertical Conversion Engine *(Completed & Verified)*
+- [ ] **Phase 18:** Subtitle Generation & Karaoke Styler (.ass/burned-in) *(Phase 18.1 Architecture & Documentation Active)*
 - [ ] **Phase 19:** Interactive Clip Studio (Preview & Fine Trimming)
-- [ ] **Phase 20:** Video Export & NVENC Hardware Acceleration
+- [ ] **Phase 20:** Final Video Export & Packaging

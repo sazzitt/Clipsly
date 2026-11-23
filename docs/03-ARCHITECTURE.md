@@ -486,4 +486,9 @@ FastAPI utilizes the modern `lifespan` context manager to orchestrate clean star
   - Transactional SQLite persistence updating `highlights` table with redetection preservation of reviewed items.
   - Full REST API endpoints (`/api/v1/videos/{video_id}/highlights/*` and `/api/v1/highlights/*`).
   - Interactive workstation frontend (`HighlightDetectionPanel`, `HighlightCard`, `HighlightEditDialog`, `HighlightsPage`, and `VideoDetailPage` Tab 4).
-- **Immediate Next Step:** Proceed to **Phase 17 (Video Clip Slicing & Subtitle Burn Pipeline)** upon user approval.
+- **Phase 17 Implementation Status (COMPLETE & VERIFIED):**
+  - Automatic clip editing and vertical 9:16 conversion pipeline (`BLUR_PAD`, `CROP_CENTER`, `FIT_LETTERBOX`).
+  - Dynamic NVENC capability probe with seamless CPU fallback (`libx264`).
+  - Studio video player with range-request streaming, responsive timeline, and clip metadata inspector.
+  - 100% test pass rate across backend pytest (197 items) and frontend Vitest (135 tests).
+- **Current Phase:** **Phase 18 (Subtitle & Caption Engine)** — Phase 18.1 Architecture & Specification Finalized (docs/16 through 19).

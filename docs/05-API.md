@@ -710,10 +710,10 @@ data: {"gpu_vram_used_mb":1120,"gpu_vram_free_mb":2976,"cpu_load":24.0}
 - **Response Status:** `204 No Content`.
 
 ### 9.6 `GET /api/v1/clips/{clip_id}/subtitles.ass`
-- **Purpose:** Downloads dynamically compiled ASS subtitle file for client-side preview rendering. Activates in Phase 18 — Subtitle & Caption Engine.
-- **Current Status (Phase 17):** Not implemented yet. This endpoint intentionally returns `501 Not Implemented` during Phase 17. Subtitle generation belongs to Phase 18 — Subtitle & Caption Engine.
-- **Content-Type:** `application/json` (501 response); `text/x-ssa` (upon Phase 18 activation).
-- **Response Status:** `501 Not Implemented` (interim status until Phase 18 implementation).
+- **Purpose:** Downloads dynamically compiled ASS subtitle file for client-side preview rendering. Activates in Phase 18 — Subtitle & Caption Engine (Architecture defined in `docs/19-SUBTITLE-API-CONTRACTS.md`).
+- **Current Status (Phase 18.1):** Architecture & API contracts specified. Endpoint remains intentionally unavailable (`501 Not Implemented`) during Phase 18.1 (Architecture & Documentation phase), and will be activated in Phase 18.2 implementation.
+- **Content-Type:** `application/json` (501 response); `text/x-ssa` (upon Phase 18.2 activation).
+- **Response Status:** `501 Not Implemented` (interim status until Phase 18.2 implementation).
 - **Response Schema (`501 Not Implemented`):**
   ```json
   {
@@ -726,6 +726,13 @@ data: {"gpu_vram_used_mb":1120,"gpu_vram_free_mb":2976,"cpu_load":24.0}
     }
   }
   ```
+- **Related Phase 18 Subtitle Endpoints (Defined in `docs/19-SUBTITLE-API-CONTRACTS.md`):**
+  - `POST /api/v1/clips/{clip_id}/subtitles/generate`
+  - `GET /api/v1/clips/{clip_id}/subtitles`
+  - `PUT /api/v1/clips/{clip_id}/subtitles`
+  - `PUT /api/v1/clips/{clip_id}/subtitles/events/{event_id}`
+  - `GET /api/v1/subtitles/presets`
+  - `DELETE /api/v1/clips/{clip_id}/subtitles`
 
 ---
 

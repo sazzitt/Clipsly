@@ -176,4 +176,20 @@ clipsly/
   - **Validation & Containment:** FFprobe verification on generated WAV ensuring exact codec, channel, and rate compliance; storage path traversal protection.
   - **Frontend UI:** Dedicated Audio Preprocessing card on Video Details page with stream selector, extract button, real-time progress bar with cancel action, and validated WAV specifications display.
   - **Quality Gates:** 104 backend pytest tests passing (100%); 95 frontend Vitest tests passing (100%); ESLint clean (0 errors, 0 warnings); TypeScript strict check (`tsc -b`) clean; Vite production build clean (11.72s).
-- **Execution Target:** **Phase 16 (AI Highlight Detection & Clip Intelligence Engine) COMPLETE & VERIFIED.** Stop condition enforced; awaiting explicit user approval before beginning Phase 17 (Video Clip Slicing & Subtitle Burn Pipeline).
+- **Faster-Whisper Speech-to-Text Pipeline (Phase 15):**
+  - Faster-Whisper local model inference with Silero VAD segmentation and word-level timestamps (`words_json`).
+  - Single-model VRAM lifecycle manager enforcing ADR-002, automatic CPU fallback, and non-blocking asynchronous streaming.
+  - Quality Gates: 135 backend pytest tests passing (100%); 109 frontend Vitest tests passing (100%).
+- **AI Highlight Detection & Clip Intelligence Engine (Phase 16):**
+  - Heuristic feature extractor (hooks, flow, density, energy) and deterministic 4D scoring engine.
+  - Temporal Non-Maximum Suppression (NMS) deduplication across 15-90s duration presets.
+  - Quality Gates: 168 backend pytest tests passing (100%); 127 frontend Vitest tests passing (100%).
+- **Automatic Clip Editing & Vertical Conversion Engine (Phase 17):**
+  - Asynchronous FFmpeg clip generation pipeline supporting `BLUR_PAD`, `CROP_CENTER`, and `FIT_LETTERBOX` 9:16 vertical conversion.
+  - Hardware encoding via NVIDIA NVENC (`h264_nvenc`) with dynamic capability probe and seamless CPU fallback (`libx264`).
+  - Interactive Studio preview player with RFC 9110 HTTP Range streaming, responsive timeline, and MP4 download.
+  - Quality Gates: 197 backend pytest tests passing (100%); 135 frontend Vitest tests passing (100%).
+- **Subtitle & Caption Engine Architecture (Phase 18.1):**
+  - Complete architecture, ASS v4.00+ specification, caption design system, and REST API contracts documented in `docs/16-SUBTITLE-ENGINE.md`, `docs/17-ASS-FORMAT-SPECIFICATION.md`, `docs/18-CAPTION-DESIGN-SYSTEM.md`, and `docs/19-SUBTITLE-API-CONTRACTS.md`.
+  - Zero VRAM execution on CPU, word-level synchronization algorithm with missing timestamp interpolation, 6 typographic presets (Minimal, Modern, Bold, Karaoke Amber, Podcast, Cinematic).
+  - Phase Boundary: Architecture and documentation complete. Implementation deferred to Phase 18.2.
