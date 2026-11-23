@@ -82,6 +82,10 @@ class Settings(BaseSettings):
         return self.STORAGE_DIR / "exports"
 
     @property
+    def CLIPS_DIR(self) -> Path:
+        return self.STORAGE_DIR / "clips"
+
+    @property
     def CACHE_DIR(self) -> Path:
         return self.STORAGE_DIR / "cache"
 
@@ -103,6 +107,7 @@ class Settings(BaseSettings):
         self.LOGS_DIR.mkdir(parents=True, exist_ok=True)
         self.STORAGE_DIR.mkdir(parents=True, exist_ok=True)
         self.UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+        self.CLIPS_DIR.mkdir(parents=True, exist_ok=True)
         self.EXPORT_DIR.mkdir(parents=True, exist_ok=True)
         self.CACHE_DIR.mkdir(parents=True, exist_ok=True)
         self.TEMP_DIR.mkdir(parents=True, exist_ok=True)

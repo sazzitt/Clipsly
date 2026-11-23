@@ -338,7 +338,41 @@ export interface HighlightRejectRequest {
 
 export type AspectRatio = "9:16" | "1:1" | "16:9" | string;
 export type CropMode = "blur_fill" | "center_crop" | string;
-export type ClipStatus = "draft" | "rendered" | "exported" | string;
+export type ConversionMode = "BLUR_PAD" | "CROP_CENTER" | "FIT_LETTERBOX" | string;
+export type ClipStatus =
+  | "DRAFT"
+  | "QUEUED"
+  | "PROCESSING"
+  | "COMPLETED"
+  | "FAILED"
+  | "CANCELLED"
+  | "draft"
+  | "rendered"
+  | "exported"
+  | string;
+
+export interface ClipGenerationRequest {
+  video_id: string;
+  highlight_id?: string | null;
+  title?: string;
+  start_ms: number;
+  end_ms: number;
+  aspect_ratio_mode?: string;
+  conversion_mode?: string;
+  target_width?: number;
+  target_height?: number;
+  target_fps?: number;
+  force_cpu?: boolean;
+}
+
+export interface ClipGenerationResponse {
+  job_id: string;
+  clip_id: string;
+  video_id: string;
+  status: string;
+  message: string;
+  clip: Clip;
+}
 
 export interface Clip {
   id: string;
@@ -350,6 +384,18 @@ export interface Clip {
   end_ms: number;
   duration_ms: number;
   aspect_ratio_mode: string;
+  conversion_mode?: string;
+  output_path?: string | null;
+  output_filename?: string | null;
+  width?: number;
+  height?: number;
+  fps?: number;
+  video_codec?: string;
+  audio_codec?: string | null;
+  file_size_bytes?: number | null;
+  encoding_backend?: string | null;
+  error_message?: string | null;
+  completed_at?: string | null;
   subtitle_enabled: boolean;
   subtitle_style_preset: string;
   subtitle_font_family?: string;

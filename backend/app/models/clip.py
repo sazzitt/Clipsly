@@ -1,6 +1,7 @@
+from datetime import datetime
 from typing import List, Optional
 import uuid
-from sqlalchemy import Boolean, CheckConstraint, ForeignKey, Index, Integer, String, Text
+from sqlalchemy import BigInteger, Boolean, CheckConstraint, DateTime, Float, ForeignKey, Index, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from backend.app.models.base import Base, TimestampMixin
 
@@ -33,6 +34,20 @@ class Clip(Base, TimestampMixin):
     subtitle_vertical_position: Mapped[str] = mapped_column(String(16), nullable=False, default="BOTTOM")
     custom_subtitle_text: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     status: Mapped[str] = mapped_column(String(32), nullable=False, default="DRAFT")
+
+    # Rendered asset & vertical conversion metadata
+    output_path: Mapped[Optional[str]] = mapped_column(String(512), nullable=True)
+    output_filename: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    width: Mapped[Optional[int]] = mapped_column(Integer, nullable=True, default=1080)
+    height: Mapped[Optional[int]] = mapped_column(Integer, nullable=True, default=1920)
+    fps: Mapped[Optional[float]] = mapped_column(Float, nullable=True, default=30.0)
+    video_codec: Mapped[Optional[str]] = mapped_column(String(32), nullable=True, default="h264")
+    audio_codec: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)
+    file_size_bytes: Mapped[Optional[int]] = mapped_column(BigInteger, nullable=True)
+    conversion_mode: Mapped[str] = mapped_column(String(32), nullable=False, default="BLUR_PAD")
+    encoding_backend: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)
+    error_message: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    completed_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
 
     # Relationships
     video: Mapped["Video"] = relationship("Video", back_populates="clips")

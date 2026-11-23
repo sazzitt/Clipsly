@@ -81,6 +81,9 @@ class JobQueueManager:
                             elif db_j.job_type == "HIGHLIGHT_DETECTION":
                                 from backend.app.services.highlight_detection import cancel_highlight_detection
                                 await cancel_highlight_detection(self._current_job_id, session)
+                            elif db_j.job_type == "CLIP_GENERATION":
+                                from backend.app.services.clip_generation import cancel_clip_generation
+                                await cancel_clip_generation(self._current_job_id, session)
                 except Exception as e:
                     logger.warning("Error cancelling active job during shutdown: %s", e)
 
@@ -142,9 +145,16 @@ class JobQueueManager:
             from backend.app.services.audio_extraction import _active_processes, cancel_audio_extraction
             from backend.app.services.transcription import _active_jobs as active_transcription_jobs, cancel_transcription
             from backend.app.services.highlight_detection.detector import _active_jobs as active_highlight_jobs, cancel_highlight_detection
+            from backend.app.services.clip_generation.generator import _active_processes as active_clip_processes, cancel_clip_generation
 
-            # Case 1: Job is currently executing (either tracked by queue or in _active_processes / active transcriptions / active highlights)
-            if self._current_job_id == job_id or job_id in _active_processes or job_id in active_transcription_jobs or job_id in active_highlight_jobs:
+            # Case 1: Job is currently executing (either tracked by queue or in active processes/jobs)
+            if (
+                self._current_job_id == job_id
+                or job_id in _active_processes
+                or job_id in active_transcription_jobs
+                or job_id in active_highlight_jobs
+                or job_id in active_clip_processes
+            ):
                 logger.info("Cancelling actively executing job %s", job_id)
                 self._queued_video_ids.discard(job.video_id)
                 if job.job_type == "AUDIO_EXTRACTION":
@@ -153,6 +163,8 @@ class JobQueueManager:
                     return await cancel_transcription(job_id, db)
                 elif job.job_type == "HIGHLIGHT_DETECTION":
                     return await cancel_highlight_detection(job_id, db)
+                elif job.job_type == "CLIP_GENERATION":
+                    return await cancel_clip_generation(job_id, db)
                 else:
                     job.status = "CANCELLED"
                     job.current_step = "Cancelled by user"
