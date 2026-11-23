@@ -477,10 +477,11 @@ async def extract_audio_endpoint(
                 audio_asset=asset_resp,
             )
 
-    # Check if already active
-    if video_id in _active_extractions:
+    # Check if already active or queued (ADR-001 & ADR-002)
+    from backend.app.services.queue import job_queue
+    if job_queue.is_video_active(video_id) or video_id in _active_extractions:
         raise ConflictError(
-            f"Audio extraction is already in progress for video '{video_id}'.",
+            f"Audio extraction is already in progress or queued for video '{video_id}'.",
             details={"video_id": video_id},
         )
 
@@ -498,14 +499,17 @@ async def extract_audio_endpoint(
     db.add(job)
     await db.commit()
 
-    # Launch background extraction task
-    asyncio.create_task(
-        extract_and_preprocess_audio(
-            video_id=video_id,
-            stream_index=body.stream_index,
-            job_id=job_id,
-            force_reextract=body.force_reextract,
-        )
+    # Submit to sequential background worker queue (ADR-001)
+    await job_queue.submit_job(
+        job_id=job_id,
+        video_id=video_id,
+        handler=extract_and_preprocess_audio,
+        job_kwargs={
+            "video_id": video_id,
+            "stream_index": body.stream_index,
+            "job_id": job_id,
+            "force_reextract": body.force_reextract,
+        },
     )
 
     return AudioExtractionJobResponse(
@@ -615,10 +619,15 @@ async def delete_video(
 
     file_unlinked = False
     if purge_files:
+        storage_root = settings.STORAGE_DIR.resolve()
         if video.file_path:
             try:
-                if os.path.exists(video.file_path):
-                    os.remove(video.file_path)
+                v_path = Path(video.file_path)
+                if not v_path.is_absolute():
+                    v_path = settings.STORAGE_DIR.parent / video.file_path
+                resolved_v_path = v_path.resolve()
+                if resolved_v_path.is_relative_to(storage_root) and resolved_v_path.exists():
+                    resolved_v_path.unlink()
                     file_unlinked = True
             except OSError:
                 pass
@@ -628,8 +637,12 @@ async def delete_video(
         audio_asset = res_audio.scalar_one_or_none()
         if audio_asset and audio_asset.file_path:
             try:
-                if os.path.exists(audio_asset.file_path):
-                    os.remove(audio_asset.file_path)
+                a_path = Path(audio_asset.file_path)
+                if not a_path.is_absolute():
+                    a_path = settings.STORAGE_DIR.parent / audio_asset.file_path
+                resolved_a_path = a_path.resolve()
+                if resolved_a_path.is_relative_to(storage_root) and resolved_a_path.exists():
+                    resolved_a_path.unlink()
             except OSError:
                 pass
 

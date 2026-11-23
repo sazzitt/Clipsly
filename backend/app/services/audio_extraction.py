@@ -32,6 +32,7 @@ _active_extractions: Set[str] = set()
 _extraction_lock = asyncio.Lock()
 _active_processes: Dict[str, asyncio.subprocess.Process] = {}
 _active_temp_files: Dict[str, Path] = {}
+_cancelled_jobs: Set[str] = set()
 
 
 async def inspect_audio_streams(file_path: Path, timeout_seconds: float = 30.0) -> List[Dict[str, Any]]:
@@ -517,16 +518,19 @@ async def extract_and_preprocess_audio(
 
     except Exception as exc:
         logger.error("Audio extraction failed for video %s: %s", video_id, exc)
-        # Update job to FAILED
+        # Update job to FAILED only if not already cancelled
         if current_job_id:
             try:
-                async with AsyncSessionLocal() as session:
-                    failed_job = await session.get(ProcessingJob, current_job_id)
-                    if failed_job and failed_job.status != "CANCELLED":
-                        failed_job.status = "FAILED"
-                        failed_job.error_message = str(exc)
-                        failed_job.completed_at = datetime.now(timezone.utc)
-                        await session.commit()
+                if current_job_id in _cancelled_jobs:
+                    logger.info("Job %s was cancelled; skipping FAILED state update.", current_job_id)
+                else:
+                    async with AsyncSessionLocal() as session:
+                        failed_job = await session.get(ProcessingJob, current_job_id)
+                        if failed_job and failed_job.status != "CANCELLED":
+                            failed_job.status = "FAILED"
+                            failed_job.error_message = str(exc)
+                            failed_job.completed_at = datetime.now(timezone.utc)
+                            await session.commit()
             except Exception:
                 pass
         raise
@@ -541,6 +545,7 @@ async def extract_and_preprocess_audio(
         if current_job_id:
             _active_processes.pop(current_job_id, None)
             _active_temp_files.pop(current_job_id, None)
+            _cancelled_jobs.discard(current_job_id)
 
         async with _extraction_lock:
             _active_extractions.discard(video_id)
@@ -554,6 +559,15 @@ async def cancel_audio_extraction(job_id: str, db: AsyncSession) -> bool:
 
     if job.status in ("COMPLETED", "FAILED", "CANCELLED"):
         raise ConflictError(f"Job '{job_id}' is already in terminal state '{job.status}'.")
+
+    # Mark cancelled immediately to prevent race conditions with failure handler
+    _cancelled_jobs.add(job_id)
+    job.status = "CANCELLED"
+    job.current_step = "Cancelled by user"
+    job.error_message = "Audio extraction job was cancelled by user."
+    job.completed_at = datetime.now(timezone.utc)
+    await db.commit()
+    await db.refresh(job)
 
     # Kill running process
     proc = _active_processes.get(job_id)
@@ -571,13 +585,6 @@ async def cancel_audio_extraction(job_id: str, db: AsyncSession) -> bool:
             temp_file.unlink()
         except OSError:
             pass
-
-    job.status = "CANCELLED"
-    job.current_step = "Cancelled by user"
-    job.error_message = "Audio extraction job was cancelled by user."
-    job.completed_at = datetime.now(timezone.utc)
-    await db.commit()
-    await db.refresh(job)
 
     _active_processes.pop(job_id, None)
     _active_temp_files.pop(job_id, None)

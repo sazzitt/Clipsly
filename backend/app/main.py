@@ -31,12 +31,18 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     else:
         logger.error("Database connection failed during startup initialization.")
 
+    # Start sequential background job queue worker (ADR-001)
+    from backend.app.services.queue import job_queue
+    await job_queue.start()
+
     logger.info("Application ready and listening on http://%s:%d", settings.HOST, settings.PORT)
 
     yield
 
     # Shutdown sequence
     logger.info("Shutting down %s application cleanly...", settings.APP_NAME)
+    from backend.app.services.queue import job_queue
+    await job_queue.stop()
     await engine.dispose()
     logger.info("Database engine connections disposed.")
 
