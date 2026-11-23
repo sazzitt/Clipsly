@@ -165,20 +165,36 @@ When silence exists between words within a single caption line, the gap duration
 
 ## 7. Character Escaping & Unicode Sanitization
 
-Special characters must be sanitized to prevent syntax errors in `libass`:
+Special characters in dialogue text must be sanitized before compiling ASS events to prevent syntax breakage in `libass`:
 
 1. **Curly Braces (`{` and `}`):**
-   - In ASS, curly braces designate override tag blocks (`{...}`).
-   - Raw dialogue containing `{` or `}` must replace `{` with `\(` and `}` with `\)`.
+   - In ASS format, `{` and `}` are reserved as control code delimiters for override tags (e.g., `{\kf30}`).
+   - If raw spoken dialogue contains literal `{` or `}` characters, they must be converted to full-width unicode braces (`｛` / `｝`) or replaced with standard parentheses `(` and `)`. Raw unescaped curly braces must never leak into dialogue text.
 2. **Backslashes (`\`):**
-   - Backslashes indicate escape sequences (`\N`, `\h`, `\k`).
-   - Literal backslashes in speech text must be converted to forward slashes `/` or escaped as `\\`.
-3. **Line Breaks:**
+   - In ASS format, backslashes introduce control sequences (`\N`, `\h`, `\k`, `\1c`).
+   - Literal backslashes in speech text must be sanitized by converting to forward slashes `/` or escaped as double backslashes `\\`.
+3. **Commas in Dialogue:**
+   - In ASS `[Events]` lines, fields are comma-delimited: `Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text`.
+   - Because `Text` is the 10th and final field in the record, commas occurring naturally in dialogue text are strictly safe and preserved as-is. `libass` treats all characters after the 9th comma as the Text payload.
+4. **Line Breaks:**
    - Soft/hard line breaks must use `\N` (uppercase) or `\n` (lowercase). Clipsly uses `\N` exclusively.
    - Non-breaking spaces use `\h`.
-4. **Encoding & Unicode:**
-   - Files are written in strict **UTF-8 without Byte Order Mark (BOM)** or with standard UTF-8.
-   - Supports emojis, non-Latin scripts, and smart quotes (`"`, `'`).
+5. **Encoding & Unicode:**
+   - Files are written in strict **UTF-8 without Byte Order Mark (BOM)**.
+   - Preserves emojis, multi-lingual scripts (CJK, Arabic, Cyrillic), accents, and smart typography (`"`, `'`, `—`).
+
+### Safe Text Sanitization Reference Implementation:
+```python
+def sanitize_ass_text(text: str) -> str:
+    """Sanitizes raw transcript text for safe injection into ASS dialogue lines."""
+    # Convert literal backslashes to avoid accidental tag escapes
+    sanitized = text.replace("\\", "/")
+    # Replace literal curly braces to prevent syntax collision with ASS override tags
+    sanitized = sanitized.replace("{", "｛").replace("}", "｝")
+    # Normalize carriage returns and newlines to ASS explicit line breaks
+    sanitized = sanitized.replace("\r\n", r"\N").replace("\n", r"\N")
+    return sanitized.strip()
+```
 
 ---
 

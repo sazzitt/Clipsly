@@ -1,3 +1,4 @@
+import json
 import os
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -26,6 +27,14 @@ from backend.app.services.clip_generation import (
     normalize_conversion_mode,
 )
 from backend.app.services.queue import job_queue
+from backend.app.services.subtitles import (
+    SubtitleGenerateRequest,
+    SubtitleTrackResponse,
+    SubtitleValidationError,
+    create_subtitle_track_for_clip,
+    get_active_subtitle_track_for_clip,
+)
+from backend.app.models.subtitle_track import SubtitleTrack
 
 router = APIRouter(prefix="/clips", tags=["Clips"])
 
@@ -620,6 +629,112 @@ async def delete_clip(
     await db.delete(clip)
     await db.commit()
     return {"success": True, "id": clip_id}
+
+
+def _serialize_subtitle_track(track: SubtitleTrack) -> Dict[str, Any]:
+    events_data = []
+    if track.events:
+        for ev in track.events:
+            words = []
+            if ev.words_json:
+                try:
+                    words = json.loads(ev.words_json)
+                except Exception:
+                    words = []
+            events_data.append({
+                "id": ev.id,
+                "sequence_index": ev.sequence_index,
+                "start_ms": ev.start_ms,
+                "end_ms": ev.end_ms,
+                "text": ev.text,
+                "words": words,
+                "style_name": ev.style_name,
+                "is_modified": ev.is_modified,
+            })
+    overrides = None
+    if track.custom_style_overrides:
+        try:
+            overrides = json.loads(track.custom_style_overrides)
+        except Exception:
+            overrides = None
+
+    return {
+        "id": track.id,
+        "clip_id": track.clip_id,
+        "transcript_id": track.transcript_id,
+        "preset_name": track.preset_name,
+        "is_enabled": track.is_enabled,
+        "is_active": track.is_active,
+        "language": track.language,
+        "ass_file_path": track.ass_file_path,
+        "compile_status": track.compile_status,
+        "custom_style_overrides": overrides,
+        "event_count": len(events_data),
+        "events": events_data,
+        "created_at": track.created_at,
+        "updated_at": track.updated_at,
+    }
+
+
+@router.post(
+    "/{clip_id}/subtitles/generate",
+    status_code=status.HTTP_201_CREATED,
+    summary="Generate Subtitle Track for Clip",
+    description="Synchronizes transcript words with clip bounds and creates clip-relative subtitle events in DB.",
+)
+async def generate_clip_subtitles(
+    clip_id: str,
+    payload: SubtitleGenerateRequest,
+    db: AsyncSession = Depends(get_database),
+):
+    """Generates a SubtitleTrack and SubtitleEvents from active video transcript."""
+    # Check if clip exists
+    stmt_clip = select(Clip).where(Clip.id == clip_id)
+    clip_res = await db.execute(stmt_clip)
+    clip = clip_res.scalar_one_or_none()
+    if not clip:
+        raise NotFoundError(f"Clip '{clip_id}' not found.")
+
+    try:
+        track = await create_subtitle_track_for_clip(
+            session=db,
+            clip_id=clip_id,
+            request=payload,
+        )
+        return _serialize_subtitle_track(track)
+    except SubtitleValidationError as e:
+        raise ValidationError(str(e))
+    except ValueError as e:
+        err_msg = str(e)
+        if "transcript" in err_msg.lower():
+            raise InvalidFileFormatError(err_msg)
+        if "clip" in err_msg.lower() and "not found" in err_msg.lower():
+            raise NotFoundError(err_msg)
+        raise ValidationError(err_msg)
+
+
+@router.get(
+    "/{clip_id}/subtitles",
+    status_code=status.HTTP_200_OK,
+    summary="Get Subtitle Track for Clip",
+    description="Retrieves the active subtitle track and its caption events for a clip.",
+)
+async def get_active_clip_subtitles(
+    clip_id: str,
+    db: AsyncSession = Depends(get_database),
+):
+    """Fetches active subtitle track and events for Studio UI."""
+    stmt_clip = select(Clip).where(Clip.id == clip_id)
+    clip_res = await db.execute(stmt_clip)
+    clip = clip_res.scalar_one_or_none()
+    if not clip:
+        raise NotFoundError(f"Clip '{clip_id}' not found.")
+
+    track = await get_active_subtitle_track_for_clip(session=db, clip_id=clip_id)
+    if not track:
+        raise NotFoundError(f"No active subtitle track found for clip '{clip_id}'.")
+
+    return _serialize_subtitle_track(track)
 
 
 @router.get(

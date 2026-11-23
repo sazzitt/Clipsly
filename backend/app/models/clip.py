@@ -55,6 +55,9 @@ class Clip(Base, TimestampMixin):
     export_jobs: Mapped[List["ExportJob"]] = relationship(
         "ExportJob", back_populates="clip", cascade="all, delete-orphan"
     )
+    subtitle_tracks: Mapped[List["SubtitleTrack"]] = relationship(
+        "SubtitleTrack", back_populates="clip", cascade="all, delete-orphan"
+    )
 
     __table_args__ = (
         CheckConstraint("start_ms >= 0 AND end_ms > start_ms", name="chk_clip_timing"),

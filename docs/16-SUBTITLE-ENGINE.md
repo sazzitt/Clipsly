@@ -168,15 +168,23 @@ For every transcript word $w$ with absolute speech interval $[w.t_0, w.t_1]$:
 3. **Word Centisecond Duration for Karaoke:**
    $$\Delta t_{\text{cs}} = \max\left(1, \operatorname{round}\left(\frac{t_{1,\text{rel}} - t_{0,\text{rel}}}{10}\right)\right)$$
 
-### 5.2 Missing Word Timestamps Handling
-If a transcript segment contains text but lacks word-level timestamps (e.g. Faster-Whisper failed to produce word alignments or fallback speech models were used):
-1. The segment text is split into tokens: $W = [w_1, w_2, \dots, w_k]$.
-2. Let $L_i = \operatorname{len}(w_i)$ be the character length of word $w_i$.
+### 5.2 Missing Word Timestamps Handling (Duration-Safe Interpolation)
+If a transcript segment contains text but lacks word-level timestamps (e.g. Faster-Whisper produced segment-level timestamps without word alignments or fallback speech models were used):
+1. The segment text is split into tokens: $W = [w_1, w_2, \dots, w_k]$ ($k \ge 1$).
+2. Let $L_i = \max(1, \operatorname{len}(w_i))$ be the character length of word $w_i$.
 3. Total character weight: $L_{\text{total}} = \sum_{i=1}^k L_i$.
 4. Segment duration: $D_{\text{seg}} = \text{seg.end\_ms} - \text{seg.start\_ms}$.
-5. Each word receives an allocated duration:
-   $$\text{dur}_i = \max\left(60, \operatorname{round}\left(D_{\text{seg}} \times \frac{L_i}{L_{\text{total}}}\right)\right)$$
-6. Synthetic start and end times are mapped sequentially within $[\text{seg.start\_ms}, \text{seg.end\_ms}]$ without overlap.
+5. **Duration-Safe Constraint Rule:** To prevent total duration from ever exceeding $D_{\text{seg}}$, the engine **must not** blindly enforce an arbitrary minimum (such as $60\text{ms}$) that would inflate short segments beyond their actual duration.
+6. Proportional allocation with remainder distribution:
+   $$\text{base\_dur}_i = \left\lfloor D_{\text{seg}} \times \frac{L_i}{L_{\text{total}}} \right\rfloor$$
+   If $D_{\text{seg}} \ge k$, enforce $\text{dur}_i \ge 1\text{ms}$. The integer division remainder $R = D_{\text{seg}} - \sum \text{base\_dur}_i$ is distributed $+1\text{ms}$ at a time across the longest tokens until $\sum_{i=1}^k \text{dur}_i = D_{\text{seg}}$ exactly.
+7. Synthetic start and end times are mapped sequentially within $[\text{seg.start\_ms}, \text{seg.end\_ms}]$:
+   $$t_{0,i} = \text{seg.start\_ms} + \sum_{j=1}^{i-1} \text{dur}_j$$
+   $$t_{1,i} = t_{0,i} + \text{dur}_i$$
+   This guarantees:
+   - Strictly monotonic non-overlapping intervals ($t_{0, i+1} = t_{1, i}$).
+   - Boundary containment: $t_{0, 1} = \text{seg.start\_ms}$ and $t_{1, k} = \text{seg.end\_ms}$.
+   - Zero duration overflow regardless of token count or segment duration.
 
 ---
 
@@ -218,10 +226,17 @@ Short-form platforms overlay interactive UI elements on vertical 1080x1920 video
 - **Decision:** Use Advanced SubStation Alpha (`.ass` v4.00+) as the primary internal subtitle format.
 - **Rationale:** SRT lacks styling, animation, and positioning tags. WebVTT has inconsistent player support and lacks native `\k` karaoke tags. ASS is universally supported by FFmpeg's `libass` filter with microsecond rendering speed and precise typographic control.
 
-### ADR-018-02: Zero-VRAM Execution for Subtitle Generation
-- **Context:** The workstation GPU (RTX 3050 Laptop) has only 4GB VRAM.
-- **Decision:** Subtitle synchronization, chunking, and ASS generation run purely on the AMD Ryzen 7 7435HS CPU.
-- **Rationale:** All necessary transcript data already exists in SQLite. Re-running Whisper is prohibited. ASS generation is light text manipulation requiring $< 10\text{MB}$ RAM and $< 50\text{ms}$ CPU time.
+- **CPU Performance Targets (Architectural Estimates — Unverified until runtime benchmarking):**
+  - ASS subtitle generation is designed to run purely in Python on the AMD Ryzen 7 7435HS CPU.
+  - The design target for compiling a 60-second clip's ASS script is estimated at $< 50\text{ms}$ CPU time and $< 10\text{MB}$ host RAM (subject to verification in Phase 18 runtime benchmarks).
+  - No Whisper models are re-loaded into the RTX 3050's 4GB VRAM.
+- **Canonical Documentation Policy:**
+  - The root `docs/` directory of the project is the **sole canonical documentation repository**.
+  - Duplicate, divergent, or secondary copies of documentation files must not be maintained.
+
+---
+
+## 8. Architectural Decisions (ADRs)
 
 ### ADR-018-03: Two-Tier Subtitle Storage (Database + Filesystem)
 - **Context:** Users need fast subtitle editing in Studio, while FFmpeg requires physical files on disk for video burning.

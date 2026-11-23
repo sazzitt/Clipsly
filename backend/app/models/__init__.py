@@ -6,6 +6,8 @@ from backend.app.models.transcript import Transcript
 from backend.app.models.transcript_segment import TranscriptSegment
 from backend.app.models.highlight import Highlight
 from backend.app.models.clip import Clip
+from backend.app.models.subtitle_track import SubtitleTrack
+from backend.app.models.subtitle_event import SubtitleEvent
 from backend.app.models.export_job import ExportJob
 from backend.app.models.setting import ApplicationSetting
 
@@ -19,6 +21,8 @@ __all__ = [
     "TranscriptSegment",
     "Highlight",
     "Clip",
+    "SubtitleTrack",
+    "SubtitleEvent",
     "ExportJob",
     "ApplicationSetting",
 ]
