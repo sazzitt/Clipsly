@@ -52,9 +52,21 @@ class Settings(BaseSettings):
     LOG_LEVEL: str = "INFO"
 
     # Hardware & Model Defaults (ADR-002: 4GB VRAM constraint)
-    TRANSCRIPTION_MODEL: str = "small"
+    TRANSCRIPTION_MODEL: str = "base"
     TRANSCRIPTION_COMPUTE_TYPE: str = "float16"
     FORCE_CPU_TRANSCRIPTION: bool = False
+    WHISPER_BEAM_SIZE: int = 5
+    DEFAULT_WHISPER_LANGUAGE: str | None = None  # None = auto-detect
+    ENABLE_WORD_TIMESTAMPS: bool = True
+
+    # Silero VAD Settings (Section 8)
+    VAD_ENABLED: bool = True
+    VAD_THRESHOLD: float = 0.5
+    VAD_MIN_SPEECH_DURATION_MS: int = 250
+    VAD_MAX_SPEECH_DURATION_S: float = 30.0
+    VAD_MIN_SILENCE_DURATION_MS: int = 2000
+    VAD_SPEECH_PAD_MS: int = 400
+
     DEFAULT_VIDEO_ENCODER: str = "h264_nvenc"
     MIN_FREE_DISK_SPACE_GB: int = 10
 
@@ -81,6 +93,10 @@ class Settings(BaseSettings):
     def TEMP_DIR(self) -> Path:
         return self.STORAGE_DIR / "temp"
 
+    @property
+    def WHISPER_MODELS_DIR(self) -> Path:
+        return self.DATA_DIR / "models" / "whisper"
+
     def model_post_init(self, __context) -> None:
         """Ensures that all local filesystem storage directories exist."""
         self.DATA_DIR.mkdir(parents=True, exist_ok=True)
@@ -91,6 +107,7 @@ class Settings(BaseSettings):
         self.CACHE_DIR.mkdir(parents=True, exist_ok=True)
         self.TEMP_DIR.mkdir(parents=True, exist_ok=True)
         self.AUDIO_DIR.mkdir(parents=True, exist_ok=True)
+        self.WHISPER_MODELS_DIR.mkdir(parents=True, exist_ok=True)
 
 
 settings = Settings()

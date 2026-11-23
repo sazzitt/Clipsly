@@ -28,6 +28,7 @@ import { Badge } from "../../components/ui/badge";
 import { Skeleton } from "../../components/ui/skeleton";
 import { ProcessingStatus, JobStatus } from "../../components/workstation/ProcessingStatus";
 import { VideoPlayer } from "./components/VideoPlayer";
+import { TranscriptionPanel, TranscriptViewer } from "../transcripts/components";
 import { useToast } from "../../hooks/useToast";
 import { api, ClipslyApiError } from "../../services/api";
 import { Video, ProcessingJob, Transcript, Highlight, Clip } from "../../types/api";
@@ -85,6 +86,11 @@ export const VideoDetailPage: React.FC = () => {
   const [isExtractingAudio, setIsExtractingAudio] = useState<boolean>(false);
   const [isCancellingAudio, setIsCancellingAudio] = useState<boolean>(false);
 
+  // Faster-Whisper transcription state (Phase 15)
+  const [activeTranscriptionJobId, setActiveTranscriptionJobId] = useState<string | null>(null);
+  const [transcriptionJob, setTranscriptionJob] = useState<ProcessingJob | null>(null);
+  const [showTranscriptionConfig, setShowTranscriptionConfig] = useState<boolean>(false);
+
   const loadVideoDetails = useCallback(async () => {
     if (!id) return;
     setIsLoading(true);
@@ -115,6 +121,20 @@ export const VideoDetailPage: React.FC = () => {
         if (runningAudio) {
           setActiveAudioJobId(runningAudio.id);
           setAudioJob(runningAudio);
+        }
+
+        const runningTranscription = jobsRes.value.items.find(
+          (j) =>
+            j.job_type === "TRANSCRIPTION" &&
+            (j.status === "QUEUED" ||
+              j.status === "PROCESSING" ||
+              j.status === "queued" ||
+              j.status === "processing" ||
+              j.status === "transcribing")
+        );
+        if (runningTranscription) {
+          setActiveTranscriptionJobId(runningTranscription.id);
+          setTranscriptionJob(runningTranscription);
         }
       }
       if (transcriptRes.status === "fulfilled") {
@@ -179,6 +199,43 @@ export const VideoDetailPage: React.FC = () => {
 
     return () => clearInterval(interval);
   }, [activeAudioJobId, loadVideoDetails, toast]);
+
+  // Faster-Whisper transcription job polling (Phase 15)
+  useEffect(() => {
+    if (!activeTranscriptionJobId) return;
+
+    const interval = setInterval(async () => {
+      try {
+        const job = await api.jobs.get(activeTranscriptionJobId);
+        if (!job || !job.status) return;
+        setTranscriptionJob(job);
+        const st = job.status.toUpperCase();
+        if (st === "COMPLETED") {
+          clearInterval(interval);
+          setActiveTranscriptionJobId(null);
+          setTranscriptionJob(null);
+          toast.success("Transcription Complete", "Speech-to-text transcript generated with word timestamps.");
+          loadVideoDetails();
+        } else if (st === "FAILED" || st === "CANCELLED") {
+          clearInterval(interval);
+          setActiveTranscriptionJobId(null);
+          setTranscriptionJob(null);
+          if (st === "FAILED") {
+            toast.error("Transcription Failed", job.error_message || "Faster-Whisper inference error.");
+          } else {
+            toast.info("Transcription Cancelled", "Job was cancelled.");
+          }
+          loadVideoDetails();
+        }
+      } catch {
+        clearInterval(interval);
+        setActiveTranscriptionJobId(null);
+        setTranscriptionJob(null);
+      }
+    }, 1200);
+
+    return () => clearInterval(interval);
+  }, [activeTranscriptionJobId, loadVideoDetails, toast]);
 
   const handleExtractAudio = async (force = false) => {
     if (!id || !video) return;
@@ -892,38 +949,86 @@ export const VideoDetailPage: React.FC = () => {
 
       {/* Tab 3: Transcript */}
       {activeTab === "transcript" && (
-        <div className="pt-2">
+        <div className="space-y-6 pt-2">
+          {/* Settings panel when retranscription requested or when no transcript exists */}
+          {(!transcript || showTranscriptionConfig) && (
+            <TranscriptionPanel
+              videoId={video.id}
+              hasAudio={video.has_audio !== false}
+              audioAsset={video.audio_asset}
+              activeJob={transcriptionJob}
+              hasExistingTranscript={Boolean(transcript)}
+              onTranscriptionStarted={(jobId) => {
+                setActiveTranscriptionJobId(jobId);
+                setTranscriptionJob({
+                  id: jobId,
+                  video_id: video.id,
+                  job_type: "TRANSCRIPTION",
+                  status: "queued",
+                  current_step: "Transcription job queued...",
+                  progress_percent: 0.0,
+                  created_at: new Date().toISOString(),
+                });
+              }}
+              onJobCancelled={() => {
+                setActiveTranscriptionJobId(null);
+                setTranscriptionJob(null);
+                loadVideoDetails();
+              }}
+              onExtractAudioRequested={() => {
+                handleExtractAudio(false);
+              }}
+            />
+          )}
+
           {transcript ? (
-            <Card>
-              <CardHeader className="pb-3">
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-sm font-semibold flex items-center gap-2">
-                    <FileText className="h-4 w-4 text-primary" />
-                    Generated Transcript
-                  </CardTitle>
-                  <div className="flex items-center gap-3 text-xs font-mono text-muted-foreground">
-                    <span>Language: {transcript.language || "auto"}</span>
-                    <span>Words: {transcript.word_count}</span>
-                  </div>
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-semibold text-foreground">Generated Transcript</span>
+                  <span className="text-xs text-muted-foreground font-mono">
+                    (Faster-Whisper {transcript.model_name})
+                  </span>
                 </div>
-              </CardHeader>
-              <CardContent>
-                <div className="p-4 rounded-lg bg-secondary/30 border border-border font-sans text-xs leading-relaxed text-foreground max-h-96 overflow-y-auto">
-                  {transcript.full_text || "No transcript text available."}
-                </div>
-              </CardContent>
-            </Card>
-          ) : (
-            <div className="rounded-xl border border-dashed border-border bg-card/30 p-8 text-center space-y-2">
-              <FileText className="h-6 w-6 text-muted-foreground mx-auto" />
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowTranscriptionConfig((prev) => !prev)}
+                  className="h-7 text-xs gap-1.5"
+                  data-testid="toggle-transcription-config-btn"
+                >
+                  <RefreshCw className="h-3 w-3 text-violet-400" />
+                  <span>{showTranscriptionConfig ? "Hide Config" : "Re-Transcribe Settings"}</span>
+                </Button>
+              </div>
+
+              <TranscriptViewer
+                transcript={transcript}
+                onRetranscribeRequested={() => setShowTranscriptionConfig(true)}
+              />
+            </div>
+          ) : !showTranscriptionConfig && !transcriptionJob ? (
+            <div className="rounded-xl border border-dashed border-border bg-card/30 p-8 text-center space-y-3">
+              <FileText className="h-8 w-8 text-muted-foreground mx-auto" />
               <h3 className="text-sm font-semibold text-foreground">No Transcript Available</h3>
               <p className="text-xs text-muted-foreground max-w-md mx-auto">
-                {video.has_audio
-                  ? "This video has not yet been processed with local Faster-Whisper transcription. Audio transcription will be introduced in Phase 14."
-                  : "This video has no audio track, so no transcript can be generated."}
+                {video.has_audio !== false
+                  ? "This video has not yet been transcribed. Run Faster-Whisper to generate sentence segments and word-level timestamps."
+                  : "This video has no audio track, so speech-to-text cannot be performed."}
               </p>
+              {video.has_audio !== false && (
+                <Button
+                  variant="default"
+                  size="sm"
+                  onClick={() => setShowTranscriptionConfig(true)}
+                  className="bg-violet-600 hover:bg-violet-700 text-white text-xs gap-1.5"
+                >
+                  <Sparkles className="h-3.5 w-3.5" />
+                  Configure Transcription Pipeline
+                </Button>
+              )}
             </div>
-          )}
+          ) : null}
         </div>
       )}
 

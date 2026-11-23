@@ -79,11 +79,15 @@ python -m venv .venv
 # Activate virtual environment
 .\.venv\Scripts\Activate.ps1
 
-# Install backend dependencies (including FastAPI, SQLAlchemy, python-multipart, pytest)
+# Install backend dependencies (including FastAPI, SQLAlchemy, Faster-Whisper, CTranslate2, ONNX Runtime, pytest)
 pip install -r backend/requirements.txt
 
-# Ensure FFmpeg/FFprobe is on system PATH (required for media validation)
+# Ensure FFmpeg/FFprobe is on system PATH (required for media validation & audio extraction)
 ffprobe -version
+ffmpeg -version
+
+# Verify NVIDIA CUDA runtime support (optional but recommended for RTX 3050 GPU acceleration)
+nvidia-smi
 
 # Apply latest database schema migrations
 alembic upgrade head

@@ -29,6 +29,9 @@ data/*.db-shm
 data/backups/*
 !data/.gitkeep
 !data/backups/.gitkeep
+data/models/**
+!data/models/
+!data/models/.gitkeep
 
 # Application Logs
 logs/*
@@ -36,8 +39,11 @@ logs/*
 *.log
 
 # Media & Scratch Storage
+storage/*.db
 storage/uploads/*
 !storage/uploads/.gitkeep
+storage/videos/*
+!storage/videos/.gitkeep
 storage/audio/*
 !storage/audio/.gitkeep
 storage/transcripts/*

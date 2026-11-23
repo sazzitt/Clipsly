@@ -45,15 +45,17 @@ async def test_jobs_endpoints(async_client: AsyncClient):
 
 @pytest.mark.asyncio
 async def test_transcripts_endpoints(async_client: AsyncClient):
-    """Verifies transcript retrieval and honest 501 on trigger."""
+    """Verifies transcript retrieval and models catalog."""
     nonexistent = str(uuid.uuid4())
     res = await async_client.get(f"/api/v1/transcripts/{nonexistent}")
     assert res.status_code == 404
     assert res.json()["error_code"] == "RESOURCE_NOT_FOUND"
 
-    res = await async_client.post("/api/v1/transcripts/transcribe")
-    assert res.status_code == 501
-    assert "Phase 13" in res.json()["detail"]
+    res_models = await async_client.get("/api/v1/transcripts/models")
+    assert res_models.status_code == 200
+    models_data = res_models.json()
+    assert "models" in models_data
+    assert len(models_data["models"]) >= 1
 
 
 @pytest.mark.asyncio

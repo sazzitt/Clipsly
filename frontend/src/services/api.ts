@@ -10,6 +10,7 @@ import {
   AudioExtractionJobResponse,
   AudioExtractionRequest,
   AudioStreamInfo,
+  AvailableModelsResponse,
   Clip,
   DashboardSummary,
   ExportJob,
@@ -20,6 +21,10 @@ import {
   SystemHardwareTelemetry,
   SystemHealth,
   Transcript,
+  TranscriptionJobResponse,
+  TranscriptionRequest,
+  TranscriptSegment,
+  TranscriptSegmentListResponse,
   UploadOptions,
   Video,
 } from "../types/api";
@@ -265,6 +270,14 @@ export const api = {
       request<AudioAsset>(`/videos/${id}/audio`, { method: "GET", signal }),
     getAudioStreams: (id: string, signal?: AbortSignal) =>
       request<AudioStreamInfo[]>(`/videos/${id}/audio/streams`, { method: "GET", signal }),
+    transcribe: (id: string, options?: TranscriptionRequest, signal?: AbortSignal) =>
+      request<TranscriptionJobResponse>(`/videos/${id}/transcribe`, {
+        method: "POST",
+        body: JSON.stringify(options || {}),
+        signal,
+      }),
+    getTranscript: (id: string, signal?: AbortSignal) =>
+      request<Transcript>(`/videos/${id}/transcript`, { method: "GET", signal }),
   },
 
   jobs: {
@@ -282,8 +295,38 @@ export const api = {
   },
 
   transcripts: {
-    get: (videoId: string, signal?: AbortSignal) =>
-      request<Transcript>(`/transcripts/${videoId}`, { method: "GET", signal }),
+    get: (videoOrTranscriptId: string, signal?: AbortSignal) =>
+      request<Transcript>(`/transcripts/${videoOrTranscriptId}`, { method: "GET", signal }),
+    getModels: (signal?: AbortSignal) =>
+      request<AvailableModelsResponse>("/transcripts/models", { method: "GET", signal }),
+    getSegments: (
+      transcriptId: string,
+      params?: { limit?: number; offset?: number },
+      signal?: AbortSignal
+    ) => {
+      const query = buildQueryString(params as unknown as Record<string, unknown>);
+      return request<TranscriptSegmentListResponse>(`/transcripts/${transcriptId}/segments${query}`, {
+        method: "GET",
+        signal,
+      });
+    },
+    updateSegment: (
+      transcriptId: string,
+      segmentId: string,
+      text: string,
+      signal?: AbortSignal
+    ) =>
+      request<TranscriptSegment>(`/transcripts/${transcriptId}/segments/${segmentId}`, {
+        method: "PATCH",
+        body: JSON.stringify({ text }),
+        signal,
+      }),
+    transcribe: (videoId: string, options?: TranscriptionRequest, signal?: AbortSignal) =>
+      request<TranscriptionJobResponse>("/transcripts/transcribe", {
+        method: "POST",
+        body: JSON.stringify({ video_id: videoId, ...(options || {}) }),
+        signal,
+      }),
   },
 
   highlights: {

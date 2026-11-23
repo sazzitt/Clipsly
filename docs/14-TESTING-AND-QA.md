@@ -689,8 +689,74 @@ Test Files  11 passed (11)
 
 ---
 
-## 14. Current Status & Next Steps
+## 14. Phase 15 Test Execution Log (Faster-Whisper Speech-to-Text Pipeline & Silero VAD)
 
-- **Status:** PHASE 14 COMPLETED & VERIFIED.
-- **Active Suites:** 104 backend pytest tests passing (100%), 95 frontend Vitest tests passing (100%), ESLint clean (0 errors, 0 warnings), TypeScript build clean.
-- **Next Phase:** Strict Stop Condition Enforced. Awaiting explicit user approval before beginning Phase 15 (Faster-Whisper Speech-to-Text Pipeline).
+### 14.1 Backend Pytest Execution
+```powershell
+$env:PYTHONPATH="Clipsly"; Clipsly\.venv\Scripts\python -m pytest Clipsly/backend/tests -v
+============================ 140 passed in 21.21s =============================
+```
+- **Tests Passing:** 140/140 (100%).
+- **Phase 15 Additions (31 new unit/integration tests in `backend/tests/test_transcription.py`):**
+  - Model name resolution, default parameter fallbacks, and VRAM sizing limits.
+  - Model configuration initialization (`tiny`, `base`, `small`, `medium`).
+  - `WhisperModelManager` thread-safe singleton lifecycle and model unloading.
+  - Automatic CPU fallback on simulated CUDA out-of-memory.
+  - Model cache directory auto-creation and setting verification.
+  - Sentence-level segment generation and word-level timestamp structure validation.
+  - Single segment and multi-segment utterance transcription processing.
+  - Non-speech / silent audio handling: zero hallucinations, clean empty segment set.
+  - Silero VAD filter option integration (`vad_filter=True`, `min_silence_duration_ms`).
+  - Cooperative cancellation: checking `_cancelled_jobs` after each segment and terminating cleanly.
+  - Sequential execution enforcement: queue submission, single-worker execution, no thread starvation.
+  - Transcript persistence: active flag management, historical deactivation, segment cascade persistence.
+  - Missing audio asset detection and helpful validation error handling.
+  - Corrupt or missing audio file handling during pipeline execution.
+  - `GET /api/v1/transcripts/models` listing all supported models, GPU name, and VRAM availability.
+  - `GET /api/v1/videos/{video_id}/transcript` retrieving active transcript and full text.
+  - `GET /api/v1/transcripts/{transcript_id}` direct retrieval by ID.
+  - `GET /api/v1/transcripts/{transcript_id}/segments` paginated segment list retrieval.
+  - `PATCH /api/v1/transcripts/{transcript_id}/segments/{segment_id}` in-place word edit with full-text resynchronization.
+  - `POST /api/v1/videos/{video_id}/transcribe` and `POST /api/v1/transcripts/transcribe` job enqueueing.
+  - `force=False` idempotent return of existing completed transcript without redundant re-run.
+  - `force=True` re-transcription triggering new job and cleanly superseding prior active transcript.
+  - ADR-008 cascade delete preservation: deleting parent Video removes transcripts and segments.
+  - Filesystem path privacy: ensuring host absolute file paths are never exposed in responses.
+
+### 14.2 Frontend Vitest Execution
+```powershell
+npm run test:run
+ Test Files  12 passed (12)
+      Tests  113 passed (113)
+   Duration  15.08s
+```
+- **Tests Passing:** 113/113 (100%).
+- **Phase 15 Additions (18 new tests in `frontend/src/test/transcription.test.tsx`):**
+  - `TranscriptionPanel` renders model selector, device options, and compute types.
+  - Displays VRAM requirements and badges for recommended models.
+  - Warning alert rendered when 16kHz audio asset is not yet extracted.
+  - Successful job submission triggers callback and toast notification.
+  - Active transcription job displays progress bar, step description, and cancel button.
+  - Cancellation button sends cancel request and shows cancellation toast.
+  - `TranscriptViewer` renders full text, segment count, language pill, and word count.
+  - Search filter updates segment list in real time.
+  - Tab switching between Sentence View and Word Timestamps View.
+  - Timestamp click invokes video seeker callback with exact millisecond position.
+  - Inline segment editing triggers PATCH endpoint and updates UI optimistically.
+  - "Copy Full Text" copies complete transcript to system clipboard.
+  - "Export SRT" downloads standard SubRip (.srt) caption file with valid timestamps.
+  - `VideoDetailPage` Tab 3 ("Transcript") integrates panel and viewer seamlessly.
+  - `TranscriptViewerPage` renders standalone workstation transcription view.
+
+### 14.3 Code Quality & Production Build
+- **ESLint:** `npm run lint` passed with 0 errors and 0 warnings.
+- **TypeScript:** Strict typecheck `tsc -b` passed with 0 errors.
+- **Vite Production Build:** Compiled production bundle (`dist/`) in 12.36s with zero errors.
+
+---
+
+## 15. Current Status & Next Steps
+
+- **Status:** PHASE 15 COMPLETED & VERIFIED.
+- **Active Suites:** 140 backend pytest tests passing (100%), 113 frontend Vitest tests passing (100%), ESLint clean (0 errors, 0 warnings), TypeScript build clean.
+- **Next Phase:** Strict Stop Condition Enforced. Awaiting explicit user approval before beginning Phase 16 (AI Highlight Detection & Scoring).

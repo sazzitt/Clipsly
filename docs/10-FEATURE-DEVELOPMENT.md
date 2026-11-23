@@ -106,4 +106,13 @@ Every feature follows a disciplined 5-stage lifecycle:
   - **Stream Selection & Multi-Audio:** Detects all audio streams via FFprobe; supports selecting specific stream index or falling back to default/first audio stream.
   - **Validation & Containment:** FFprobe verification on generated WAV ensuring exact codec, channel, and rate compliance; storage path traversal protection.
   - **Frontend UI:** Dedicated Audio Preprocessing card on Video Details page with stream selector, extract button, real-time progress bar with cancel action, and validated WAV specifications display.
-- **Next Phase:** Phase 15 (Faster-Whisper Speech-to-Text Pipeline) - *Awaiting explicit user approval before beginning*.
+- **Faster-Whisper Speech-to-Text Pipeline & Silero VAD (Phase 15):**
+  - **Hardware Acceleration:** Native CTranslate2 CUDA inference on NVIDIA RTX 3050 Laptop GPU (4GB VRAM) with ONNX Runtime Silero VAD (PyTorch-free). Default model: `base` with `float16` quantization (~1.0GB VRAM footprint).
+  - **WhisperModelManager:** Non-blocking thread-safe singleton managing the loaded model lifecycle in worker threads via `asyncio.to_thread`. Enforces ADR-002 (single heavy model in VRAM at any time) with automatic CPU fallback on CUDA out-of-memory.
+  - **Silero Voice Activity Detection:** Built-in VAD filtering pre-segments audio, removes non-speech background audio, and outputs `no_speech_prob` telemetry per segment.
+  - **Word Timestamps:** Word-level precision timestamps stored in JSON arrays (`words_json`) on `transcript_segments` for downstream karaoke captions and highlight boundaries.
+  - **Database Migration:** Alembic migration `d2b5b62c44c3` adding telemetry and state tracking to `transcripts` (`audio_asset_id`, `device`, `status`, `segment_count`, `language_probability`, `audio_duration_seconds`, `error_message`) and `transcript_segments` (`no_speech_prob`).
+  - **Sequential Queue Integration:** Integrated into SQLite-backed `JobQueueManager` for `TRANSCRIPTION` jobs; cooperative cancellation flag checked after every segment.
+  - **Full REST API Suite:** Implemented `GET /api/v1/transcripts/models`, `GET /api/v1/videos/{video_id}/transcript`, `GET /api/v1/transcripts/{id}`, `GET /api/v1/transcripts/{id}/segments`, `PATCH /api/v1/transcripts/{id}/segments/{seg_id}`, and `POST /api/v1/videos/{video_id}/transcribe` / `POST /api/v1/transcripts/transcribe`.
+  - **Frontend Workstation UI:** `TranscriptionPanel` with model catalog, VRAM indicators, device/quantization toggles, VAD toggle, and live progress; `TranscriptViewer` with sentence vs word view, search filter, clickable seeking timestamps, inline segment editing, full text copy, and SRT export; integrated into `VideoDetailPage` Tab 3 and standalone `TranscriptViewerPage`.
+- **Next Phase:** Phase 16 (AI Highlight Detection & Scoring) - *Awaiting explicit user approval before beginning*.

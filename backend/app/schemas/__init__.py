@@ -7,6 +7,18 @@ from backend.app.schemas.audio import (
     AudioAssetResponse,
     AudioExtractionJobResponse,
 )
+from backend.app.schemas.transcript import (
+    WordTimestampSchema,
+    TranscriptSegmentResponse,
+    TranscriptSegmentListResponse,
+    TranscriptResponse,
+    TranscriptionRequest,
+    TranscriptionVideoRequest,
+    TranscriptionJobResponse,
+    SegmentUpdateRequest,
+    ModelOptionInfo,
+    AvailableModelsResponse,
+)
 
 __all__ = [
     "SystemHealthResponse",
@@ -18,4 +30,13 @@ __all__ = [
     "AudioExtractionRequest",
     "AudioAssetResponse",
     "AudioExtractionJobResponse",
+    "WordTimestampSchema",
+    "TranscriptSegmentResponse",
+    "TranscriptSegmentListResponse",
+    "TranscriptResponse",
+    "TranscriptionRequest",
+    "TranscriptionJobResponse",
+    "SegmentUpdateRequest",
+    "ModelOptionInfo",
+    "AvailableModelsResponse",
 ]

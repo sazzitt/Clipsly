@@ -20,6 +20,7 @@ class TranscriptSegment(Base, TimestampMixin):
     text: Mapped[str] = mapped_column(Text, nullable=False)
     words_json: Mapped[str] = mapped_column(Text, nullable=False)  # JSON array of word objects
     avg_confidence: Mapped[float] = mapped_column(Float, nullable=False, default=1.0)
+    no_speech_prob: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
     speaker_id: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)
 
     # Relationship back to Transcript

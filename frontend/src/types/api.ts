@@ -165,33 +165,100 @@ export interface AudioExtractionJobResponse {
 export interface Transcript {
   id: string;
   video_id: string;
-  language: string;
-  duration_seconds?: number;
+  audio_asset_id?: string | null;
   model_name: string;
   compute_type?: string;
+  device?: string;
+  language: string;
+  language_probability?: number | null;
+  status?: string;
   full_text?: string;
   word_count?: number;
+  segment_count?: number;
+  audio_duration_seconds?: number | null;
+  duration_seconds?: number | null;
   processing_time_seconds?: number;
+  error_message?: string | null;
   is_active?: boolean;
   created_at: string;
   updated_at?: string | null;
+  segments?: TranscriptSegment[] | null;
 }
 
 export interface WordTimestamp {
   word: string;
-  start: number;
-  end: number;
-  score: number;
+  start_ms: number;
+  end_ms: number;
+  probability?: number | null;
+  start?: number;
+  end?: number;
+  score?: number;
 }
 
 export interface TranscriptSegment {
   id: string;
   transcript_id: string;
-  start_time: number;
-  end_time: number;
+  segment_index?: number;
+  start_ms: number;
+  end_ms: number;
   text: string;
-  confidence: number;
   words?: WordTimestamp[];
+  avg_confidence?: number;
+  no_speech_prob?: number | null;
+  speaker_id?: string | null;
+  created_at?: string | null;
+  start_time?: number;
+  end_time?: number;
+  confidence?: number;
+}
+
+export interface TranscriptSegmentListResponse {
+  transcript_id: string;
+  total: number;
+  offset: number;
+  limit: number;
+  segments: TranscriptSegment[];
+}
+
+export interface TranscriptionRequest {
+  model_name?: string | null;
+  device?: string | null;
+  compute_type?: string | null;
+  language?: string | null;
+  vad_filter?: boolean | null;
+  word_timestamps?: boolean | null;
+  force_retranscribe?: boolean;
+}
+
+export interface TranscriptionJobResponse {
+  job_id: string;
+  video_id: string;
+  status: string;
+  progress_percent: number;
+  current_step: string;
+  transcript?: Transcript | null;
+}
+
+export interface ModelOptionInfo {
+  model_name: string;
+  description: string;
+  parameters: string;
+  vram_required_mb: number;
+  recommended_for: string;
+  devices_supported: string[];
+}
+
+export interface AvailableModelsResponse {
+  models: ModelOptionInfo[];
+  default_model: string;
+  cuda_available: boolean;
+  detected_gpu?: string | null;
+  cuda_compute_types: string[];
+  cpu_compute_types: string[];
+}
+
+export interface SegmentUpdateRequest {
+  text: string;
 }
 
 export interface Highlight {

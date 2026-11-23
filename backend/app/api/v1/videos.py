@@ -25,6 +25,12 @@ from backend.app.schemas.audio import (
     AudioStreamInfo,
 )
 from backend.app.schemas.common import PaginatedResponse
+from backend.app.schemas.transcript import (
+    TranscriptResponse,
+    TranscriptSegmentResponse,
+    TranscriptionJobResponse,
+    TranscriptionRequest,
+)
 from backend.app.schemas.video import VideoDetailResponse, VideoUploadResponse
 from backend.app.services.audio_extraction import (
     _active_extractions,
@@ -596,6 +602,209 @@ async def get_video_audio_streams(
 
     raw_streams = await inspect_audio_streams(resolved_path)
     return [AudioStreamInfo(**s) for s in raw_streams]
+
+
+@router.post(
+    "/{video_id}/transcribe",
+    response_model=TranscriptionJobResponse,
+    status_code=status.HTTP_202_ACCEPTED,
+    summary="Transcribe Video Speech",
+    description="Submits an asynchronous transcription job using local Faster-Whisper and Silero VAD."
+)
+async def transcribe_video_endpoint(
+    video_id: str,
+    body: Optional[TranscriptionRequest] = None,
+    db: AsyncSession = Depends(get_database)
+):
+    """Triggers speech-to-text transcription via sequential JobQueueManager."""
+    body = body or TranscriptionRequest()
+    if body.model_name and body.model_name not in ("tiny", "base", "small"):
+        raise InvalidFileFormatError(
+            f"Unsupported Faster-Whisper model size '{body.model_name}'. Choose from: ['tiny', 'base', 'small']."
+        )
+
+    stmt = select(Video).where(Video.id == video_id)
+    result = await db.execute(stmt)
+    video = result.scalar_one_or_none()
+
+    if not video:
+        raise NotFoundError(f"Video with id '{video_id}' was not found.")
+
+    # Validate audio asset exists
+    stmt_audio = select(AudioAsset).where(AudioAsset.video_id == video_id)
+    res_audio = await db.execute(stmt_audio)
+    audio_asset = res_audio.scalar_one_or_none()
+
+    if not audio_asset or audio_asset.status != "COMPLETED":
+        raise NotFoundError(
+            f"No completed audio asset found for video '{video_id}'. "
+            "Please extract audio via POST /api/v1/videos/{video_id}/extract-audio first."
+        )
+
+    # If transcript exists and not forcing re-transcription
+    if not body.force_retranscribe:
+        stmt_t = select(Transcript).where(Transcript.video_id == video_id, Transcript.is_active == True)
+        res_t = await db.execute(stmt_t)
+        existing = res_t.scalar_one_or_none()
+        if existing:
+            t_resp = TranscriptResponse(
+                id=existing.id,
+                video_id=existing.video_id,
+                audio_asset_id=existing.audio_asset_id,
+                model_name=existing.model_name,
+                compute_type=existing.compute_type,
+                device=existing.device,
+                language=existing.language,
+                language_probability=existing.language_probability,
+                status=existing.status,
+                full_text=existing.full_text,
+                word_count=existing.word_count,
+                segment_count=existing.segment_count,
+                audio_duration_seconds=existing.audio_duration_seconds,
+                processing_time_seconds=existing.processing_time_seconds,
+                error_message=existing.error_message,
+                is_active=existing.is_active,
+                created_at=existing.created_at.isoformat() if existing.created_at else None,
+                updated_at=existing.updated_at.isoformat() if existing.updated_at else None,
+            )
+            return TranscriptionJobResponse(
+                job_id=str(uuid.uuid4()),
+                video_id=video_id,
+                status="COMPLETED",
+                progress_percent=100.0,
+                current_step="Transcript already generated and active",
+                transcript=t_resp,
+            )
+
+    # Check if already active or queued (ADR-001 & ADR-002)
+    from backend.app.services.queue import job_queue
+    from backend.app.services.transcription import _active_transcriptions, transcribe_audio_pipeline
+    if job_queue.is_video_active(video_id) or video_id in _active_transcriptions:
+        raise ConflictError(
+            f"A processing job is already queued or active for video '{video_id}'.",
+            details={"video_id": video_id},
+        )
+
+    job_id = str(uuid.uuid4())
+    job = ProcessingJob(
+        id=job_id,
+        video_id=video_id,
+        job_type="TRANSCRIPTION",
+        status="QUEUED",
+        progress_percent=0.0,
+        current_step="Transcription job queued...",
+        started_at=datetime.now(timezone.utc),
+    )
+    db.add(job)
+    await db.commit()
+
+    # Submit to sequential background worker queue
+    await job_queue.submit_job(
+        job_id=job_id,
+        video_id=video_id,
+        handler=transcribe_audio_pipeline,
+        job_kwargs={
+            "video_id": video_id,
+            "job_id": job_id,
+            "model_name": body.model_name,
+            "device": body.device,
+            "compute_type": body.compute_type,
+            "language": body.language,
+            "vad_filter": body.vad_filter,
+            "word_timestamps": body.word_timestamps,
+            "force_retranscribe": body.force_retranscribe,
+        },
+    )
+
+    return TranscriptionJobResponse(
+        job_id=job_id,
+        video_id=video_id,
+        status="QUEUED",
+        progress_percent=0.0,
+        current_step="Transcription job queued...",
+    )
+
+
+@router.get(
+    "/{video_id}/transcript",
+    response_model=TranscriptResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Get Video Active Transcript",
+    description="Retrieves the currently active transcript with sentence segments for a video."
+)
+async def get_video_transcript(
+    video_id: str,
+    db: AsyncSession = Depends(get_database)
+):
+    """Retrieves the active transcript for a video."""
+    import json
+    from backend.app.models.transcript_segment import TranscriptSegment
+
+    stmt = (
+        select(Transcript)
+        .where(Transcript.video_id == video_id, Transcript.is_active == True)
+        .order_by(Transcript.created_at.desc())
+    )
+    result = await db.execute(stmt)
+    transcript = result.scalars().first()
+
+    if not transcript:
+        raise NotFoundError(f"No active transcript found for video '{video_id}'.")
+
+    # Fetch segments
+    stmt_seg = (
+        select(TranscriptSegment)
+        .where(TranscriptSegment.transcript_id == transcript.id)
+        .order_by(TranscriptSegment.segment_index.asc())
+    )
+    res_seg = await db.execute(stmt_seg)
+    db_segments = res_seg.scalars().all()
+
+    segments = []
+    for s in db_segments:
+        words = []
+        if s.words_json:
+            try:
+                words = json.loads(s.words_json)
+            except Exception:
+                words = []
+        segments.append(
+            TranscriptSegmentResponse(
+                id=s.id,
+                transcript_id=s.transcript_id,
+                segment_index=s.segment_index,
+                start_ms=s.start_ms,
+                end_ms=s.end_ms,
+                text=s.text,
+                words=words,
+                avg_confidence=s.avg_confidence,
+                no_speech_prob=s.no_speech_prob,
+                speaker_id=s.speaker_id,
+                created_at=s.created_at.isoformat() if s.created_at else None,
+            )
+        )
+
+    return TranscriptResponse(
+        id=transcript.id,
+        video_id=transcript.video_id,
+        audio_asset_id=transcript.audio_asset_id,
+        model_name=transcript.model_name,
+        compute_type=transcript.compute_type,
+        device=transcript.device,
+        language=transcript.language,
+        language_probability=transcript.language_probability,
+        status=transcript.status,
+        full_text=transcript.full_text,
+        word_count=transcript.word_count,
+        segment_count=transcript.segment_count,
+        audio_duration_seconds=transcript.audio_duration_seconds,
+        processing_time_seconds=transcript.processing_time_seconds,
+        error_message=transcript.error_message,
+        is_active=transcript.is_active,
+        created_at=transcript.created_at.isoformat() if transcript.created_at else None,
+        updated_at=transcript.updated_at.isoformat() if transcript.updated_at else None,
+        segments=segments,
+    )
 
 
 @router.delete(

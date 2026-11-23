@@ -490,24 +490,83 @@ data: {"gpu_vram_used_mb":1120,"gpu_vram_free_mb":2976,"cpu_load":24.0}
 
 ## 7. Module D: Speech Transcription
 
-### 7.1 `GET /api/v1/videos/{video_id}/transcript`
-- **Purpose:** Retrieves the active transcript summary and complete full-text body.
+### 7.1 `GET /api/v1/transcripts/models`
+- **Purpose:** Enumerates supported Faster-Whisper models, recommended configuration, and real-time hardware telemetry (GPU name, total/available VRAM).
+- **Response Status:** `200 OK`.
+- **Response Schema (`AvailableModelsResponse`):**
+  ```json
+  {
+    "models": [
+      {
+        "name": "tiny",
+        "parameters": "39M",
+        "vram_required_mb": 500,
+        "recommended": false,
+        "description": "Fastest inference, lower accuracy"
+      },
+      {
+        "name": "base",
+        "parameters": "74M",
+        "vram_required_mb": 1000,
+        "recommended": true,
+        "description": "Default recommendation for RTX 3050 4GB"
+      },
+      {
+        "name": "small",
+        "parameters": "244M",
+        "vram_required_mb": 2000,
+        "recommended": false,
+        "description": "Balanced speed and accuracy"
+      },
+      {
+        "name": "medium",
+        "parameters": "769M",
+        "vram_required_mb": 3500,
+        "recommended": false,
+        "description": "Maximum accuracy, higher VRAM load"
+      }
+    ],
+    "default_model": "base",
+    "default_device": "cuda",
+    "default_compute_type": "float16",
+    "cuda_available": true,
+    "gpu_name": "NVIDIA GeForce RTX 3050 Laptop GPU",
+    "vram_total_mb": 4096,
+    "vram_free_mb": 3120
+  }
+  ```
+
+### 7.2 `GET /api/v1/videos/{video_id}/transcript`
+- **Purpose:** Retrieves the active transcript header summary, language info, and complete plain-text transcript body.
 - **Response Status:** `200 OK`.
 - **Response Schema (`TranscriptHeaderResponse`):**
   ```json
   {
     "id": "3c4d5e6f-7a8b-9c0d-1e2f-3a4b5c6d7e8f",
     "video_id": "e4b2d188-7f3c-4a3a-96e7-8b0108ec73d4",
-    "model_name": "small",
+    "audio_asset_id": "9f2b1a4c-5d6e-4f7a-8b9c-0d1e2f3a4b5c",
+    "model_name": "base",
+    "compute_type": "float16",
+    "device": "cuda",
     "language": "en",
+    "language_probability": 0.985,
+    "status": "COMPLETED",
     "full_text": "Welcome back to the podcast. Today we are talking about...",
     "word_count": 4250,
-    "processing_time_seconds": 182.4,
-    "created_at": "2026-11-22T13:43:00Z"
+    "segment_count": 82,
+    "audio_duration_seconds": 312.4,
+    "processing_time_seconds": 18.4,
+    "is_active": true,
+    "created_at": "2026-11-23T14:43:00Z",
+    "updated_at": "2026-11-23T14:43:18Z"
   }
   ```
 
-### 7.2 `GET /api/v1/transcripts/{transcript_id}/segments`
+### 7.3 `GET /api/v1/transcripts/{transcript_id}`
+- **Purpose:** Retrieves a specific transcript record by ID (or active transcript by video ID).
+- **Response Status:** `200 OK`.
+
+### 7.4 `GET /api/v1/transcripts/{transcript_id}/segments`
 - **Purpose:** Retrieves paginated sentence segments with complete word-level timing arrays for karaoke synchronization.
 - **Query Parameters:** `limit: int = 100`, `offset: int = 0`.
 - **Response Status:** `200 OK`.
@@ -517,11 +576,14 @@ data: {"gpu_vram_used_mb":1120,"gpu_vram_free_mb":2976,"cpu_load":24.0}
     "items": [
       {
         "id": "seg_001",
+        "transcript_id": "3c4d5e6f-7a8b-9c0d-1e2f-3a4b5c6d7e8f",
         "segment_index": 0,
         "start_ms": 1200,
         "end_ms": 4800,
         "text": "The single biggest mistake creators make is waiting.",
         "avg_confidence": 0.96,
+        "no_speech_prob": 0.012,
+        "speaker_id": null,
         "words": [
           {"word": "The", "start_ms": 1200, "end_ms": 1400, "prob": 0.99},
           {"word": "single", "start_ms": 1420, "end_ms": 1780, "prob": 0.98},
@@ -534,12 +596,14 @@ data: {"gpu_vram_used_mb":1120,"gpu_vram_free_mb":2976,"cpu_load":24.0}
         ]
       }
     ],
-    "total": 340
+    "total": 82,
+    "limit": 100,
+    "offset": 0
   }
   ```
 
-### 7.3 `PATCH /api/v1/transcripts/{transcript_id}/segments/{segment_id}`
-- **Purpose:** In-place edit of misheard segment words.
+### 7.5 `PATCH /api/v1/transcripts/{transcript_id}/segments/{segment_id}`
+- **Purpose:** In-place edit of misheard segment words. Updates the segment text and words array, then synchronizes parent transcript `full_text` and `word_count`.
 - **Request Body (`SegmentUpdateRequest`):**
   ```json
   {
@@ -548,8 +612,37 @@ data: {"gpu_vram_used_mb":1120,"gpu_vram_free_mb":2976,"cpu_load":24.0}
   ```
 - **Response Status:** `200 OK`.
 
-### 7.4 `POST /api/v1/videos/{video_id}/transcribe`
-- **Purpose:** Re-runs transcription on a video with custom model parameters (`base`, `small`, `medium`).
+### 7.6 `POST /api/v1/videos/{video_id}/transcribe`
+- **Purpose:** Enqueues speech-to-text transcription for a video via the SQLite sequential job queue (ADR-001 & ADR-002).
+- **Request Body (`TranscriptionRequest`):**
+  ```json
+  {
+    "model_name": "base",
+    "compute_type": "float16",
+    "device": "cuda",
+    "language": "en",
+    "beam_size": 5,
+    "vad_filter": true,
+    "word_timestamps": true,
+    "force": false
+  }
+  ```
+- **Response Status:** `202 Accepted`.
+- **Response Schema (`TranscriptionJobResponse`):**
+  ```json
+  {
+    "job_id": "7b8e1a3c-2d4e-4f6a-8b0c-1e3d5f7a9b1c",
+    "video_id": "e4b2d188-7f3c-4a3a-96e7-8b0108ec73d4",
+    "status": "QUEUED",
+    "model_name": "base",
+    "device": "cuda",
+    "compute_type": "float16",
+    "message": "Transcription job queued successfully"
+  }
+  ```
+
+### 7.7 `POST /api/v1/transcripts/transcribe`
+- **Purpose:** Global transcription initiation route accepting `video_id` in the request body. Behaves identically to `POST /api/v1/videos/{video_id}/transcribe`.
 - **Response Status:** `202 Accepted`.
 
 ---

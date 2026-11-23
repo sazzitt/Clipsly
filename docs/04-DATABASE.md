@@ -138,22 +138,32 @@ Header record for a speech-to-text transcription run. Supports versioning if the
 CREATE TABLE transcripts (
     id VARCHAR(36) PRIMARY KEY,                         -- UUIDv4
     video_id VARCHAR(36) NOT NULL,                      -- Foreign Key to videos.id
+    audio_asset_id VARCHAR(36),                         -- Foreign Key to audio_assets.id
     model_name VARCHAR(32) NOT NULL,                    -- "tiny", "base", "small", "medium"
     compute_type VARCHAR(32) NOT NULL,                  -- "float16", "int8_float16", "int8"
+    device VARCHAR(16) NOT NULL DEFAULT 'cuda',         -- "cuda", "cpu"
     language VARCHAR(16) NOT NULL DEFAULT 'en',         -- Detected or specified BCP-47 language code
+    language_probability REAL,                          -- Detected language confidence (0.0 to 1.0)
+    status VARCHAR(32) NOT NULL DEFAULT 'COMPLETED',    -- "PROCESSING", "COMPLETED", "FAILED"
     full_text TEXT NOT NULL,                            -- Full concatenated plain-text transcript body
     word_count INTEGER NOT NULL DEFAULT 0,              -- Total words recognized
+    segment_count INTEGER NOT NULL DEFAULT 0,           -- Total segments recognized
+    audio_duration_seconds REAL,                        -- Total audio duration analyzed
     processing_time_seconds REAL NOT NULL DEFAULT 0.0,  -- Time taken by Faster-Whisper inference
+    error_message TEXT,                                 -- Failure error message if status == FAILED
     is_active BOOLEAN NOT NULL DEFAULT 1,               -- Flag identifying currently active version
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     FOREIGN KEY (video_id) REFERENCES videos(id) ON DELETE CASCADE,
+    FOREIGN KEY (audio_asset_id) REFERENCES audio_assets(id) ON DELETE SET NULL,
     CONSTRAINT chk_word_count CHECK (word_count >= 0)
 );
 
 CREATE INDEX idx_transcripts_video_id ON transcripts(video_id);
 CREATE INDEX idx_transcripts_is_active ON transcripts(video_id, is_active);
+CREATE INDEX idx_transcripts_audio_asset_id ON transcripts(audio_asset_id);
+CREATE INDEX idx_transcripts_status ON transcripts(status);
 ```
 
 ---
@@ -171,6 +181,7 @@ CREATE TABLE transcript_segments (
     text TEXT NOT NULL,                                 -- Sentence text body
     words_json TEXT NOT NULL,                           -- JSON array: [{"word":"Hello","start_ms":0,"end_ms":420,"prob":0.98}]
     avg_confidence REAL NOT NULL DEFAULT 1.0,           -- Average token probability (0.0 to 1.0)
+    no_speech_prob REAL,                                -- Silero VAD / Faster-Whisper no speech probability
     speaker_id VARCHAR(32),                             -- Optional speaker tag (e.g., "SPEAKER_00")
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
