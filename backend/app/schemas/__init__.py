@@ -19,6 +19,14 @@ from backend.app.schemas.transcript import (
     ModelOptionInfo,
     AvailableModelsResponse,
 )
+from backend.app.schemas.highlight import (
+    HighlightDetectionRequest,
+    HighlightResponse,
+    HighlightListResponse,
+    HighlightDetectionJobResponse,
+    HighlightUpdateRequest,
+    HighlightRejectRequest,
+)
 
 __all__ = [
     "SystemHealthResponse",
@@ -39,4 +47,10 @@ __all__ = [
     "SegmentUpdateRequest",
     "ModelOptionInfo",
     "AvailableModelsResponse",
+    "HighlightDetectionRequest",
+    "HighlightResponse",
+    "HighlightListResponse",
+    "HighlightDetectionJobResponse",
+    "HighlightUpdateRequest",
+    "HighlightRejectRequest",
 ]

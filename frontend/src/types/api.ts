@@ -273,6 +273,7 @@ export interface Highlight {
   duration_seconds?: number;
   hook_sentence?: string;
   summary?: string;
+  transcript_excerpt?: string | null;
   hook_score?: number;
   flow_score?: number;
   coherence_score?: number;
@@ -284,8 +285,55 @@ export interface Highlight {
   detection_method?: string;
   status: string;
   rank?: number;
+  scoring_version?: string;
   explanation?: string | null;
+  warnings?: string[];
+  detection_metadata?: Record<string, unknown>;
+  reviewed_at?: string | null;
+  rejection_reason?: string | null;
   created_at?: string | null;
+  updated_at?: string | null;
+}
+
+export interface HighlightListResponse {
+  video_id: string;
+  total: number;
+  highlights: Highlight[];
+}
+
+export interface HighlightDetectionRequest {
+  target_duration_presets?: string[];
+  min_duration_seconds?: number;
+  max_duration_seconds?: number;
+  min_score?: number;
+  max_results?: number;
+  overlap_threshold?: number;
+  hook_weight?: number;
+  coherence_weight?: number;
+  density_weight?: number;
+  sentiment_weight?: number;
+  force_redetect?: boolean;
+}
+
+export interface HighlightDetectionJobResponse {
+  job_id: string;
+  video_id: string;
+  status: string;
+  progress_percent: number;
+  current_step: string;
+  created_at: string;
+  highlights?: Highlight[];
+}
+
+export interface HighlightUpdateRequest {
+  start_ms?: number;
+  end_ms?: number;
+  summary?: string;
+  status?: string;
+}
+
+export interface HighlightRejectRequest {
+  rejection_reason?: string;
 }
 
 export type AspectRatio = "9:16" | "1:1" | "16:9" | string;

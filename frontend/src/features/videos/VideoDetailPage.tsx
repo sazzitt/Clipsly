@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import {
   Video as VideoIcon,
@@ -29,9 +29,10 @@ import { Skeleton } from "../../components/ui/skeleton";
 import { ProcessingStatus, JobStatus } from "../../components/workstation/ProcessingStatus";
 import { VideoPlayer } from "./components/VideoPlayer";
 import { TranscriptionPanel, TranscriptViewer } from "../transcripts/components";
+import { HighlightCard, HighlightDetectionPanel, HighlightEditDialog } from "../highlights/components";
 import { useToast } from "../../hooks/useToast";
 import { api, ClipslyApiError } from "../../services/api";
-import { Video, ProcessingJob, Transcript, Highlight, Clip } from "../../types/api";
+import { Video, ProcessingJob, Transcript, Highlight, Clip, HighlightDetectionRequest } from "../../types/api";
 import { DeleteConfirmationDialog, EntityStatusBadge } from "../../components/management";
 
 type ActiveTab = "overview" | "history" | "transcript" | "highlights" | "clips";
@@ -91,6 +92,14 @@ export const VideoDetailPage: React.FC = () => {
   const [transcriptionJob, setTranscriptionJob] = useState<ProcessingJob | null>(null);
   const [showTranscriptionConfig, setShowTranscriptionConfig] = useState<boolean>(false);
 
+  // Highlight intelligence state (Phase 16)
+  const [activeHighlightJobId, setActiveHighlightJobId] = useState<string | null>(null);
+  const [highlightJob, setHighlightJob] = useState<ProcessingJob | null>(null);
+  const [editingHighlight, setEditingHighlight] = useState<Highlight | null>(null);
+  const [highlightStatusFilter, setHighlightStatusFilter] = useState<string>("ALL");
+  const [highlightCategoryFilter, setHighlightCategoryFilter] = useState<string>("ALL");
+  const [highlightSortBy, setHighlightSortBy] = useState<string>("rank");
+
   const loadVideoDetails = useCallback(async () => {
     if (!id) return;
     setIsLoading(true);
@@ -135,6 +144,19 @@ export const VideoDetailPage: React.FC = () => {
         if (runningTranscription) {
           setActiveTranscriptionJobId(runningTranscription.id);
           setTranscriptionJob(runningTranscription);
+        }
+
+        const runningHighlight = jobsRes.value.items.find(
+          (j) =>
+            j.job_type === "HIGHLIGHT_DETECTION" &&
+            (j.status === "QUEUED" ||
+              j.status === "PROCESSING" ||
+              j.status === "queued" ||
+              j.status === "processing")
+        );
+        if (runningHighlight) {
+          setActiveHighlightJobId(runningHighlight.id);
+          setHighlightJob(runningHighlight);
         }
       }
       if (transcriptRes.status === "fulfilled") {
@@ -236,6 +258,145 @@ export const VideoDetailPage: React.FC = () => {
 
     return () => clearInterval(interval);
   }, [activeTranscriptionJobId, loadVideoDetails, toast]);
+
+  // Polling for active highlight detection job (Phase 16)
+  useEffect(() => {
+    if (!activeHighlightJobId) return;
+
+    const interval = setInterval(async () => {
+      try {
+        const job = await api.jobs.get(activeHighlightJobId);
+        if (!job || !job.status) return;
+        setHighlightJob(job);
+        const st = job.status.toUpperCase();
+        if (st === "COMPLETED") {
+          clearInterval(interval);
+          setActiveHighlightJobId(null);
+          setHighlightJob(null);
+          toast.success("Highlight Detection Complete", "Candidate highlights generated and ranked.");
+          loadVideoDetails();
+        } else if (st === "FAILED" || st === "CANCELLED") {
+          clearInterval(interval);
+          setActiveHighlightJobId(null);
+          setHighlightJob(null);
+          if (st === "FAILED") {
+            toast.error("Detection Failed", job.error_message || "Highlight scoring engine error.");
+          } else {
+            toast.info("Detection Cancelled", "Highlight detection job was cancelled.");
+          }
+          loadVideoDetails();
+        }
+      } catch {
+        clearInterval(interval);
+        setActiveHighlightJobId(null);
+        setHighlightJob(null);
+      }
+    }, 1200);
+
+    return () => clearInterval(interval);
+  }, [activeHighlightJobId, loadVideoDetails, toast]);
+
+  const handleDetectHighlights = async (config: HighlightDetectionRequest) => {
+    if (!id || !video) return;
+    try {
+      const res = await api.highlights.detect(id, config);
+      setActiveHighlightJobId(res.job_id);
+      setHighlightJob({
+        id: res.job_id,
+        video_id: id,
+        job_type: "HIGHLIGHT_DETECTION",
+        status: res.status as ProcessingJob["status"],
+        progress_percent: res.progress_percent,
+        current_step: res.current_step,
+        created_at: res.created_at,
+      });
+      toast.info("Highlight Detection Queued", "Sequential AI highlight scoring started.");
+    } catch (err: unknown) {
+      toast.error(
+        "Highlight Detection Failed",
+        err instanceof Error ? err.message : "Failed to submit highlight detection job."
+      );
+    }
+  };
+
+  const handleCancelHighlightDetection = async (jobId: string) => {
+    try {
+      await api.jobs.cancel(jobId);
+      toast.info("Detection Cancelled", "Highlight detection job was cancelled.");
+      setActiveHighlightJobId(null);
+      setHighlightJob(null);
+      loadVideoDetails();
+    } catch (err: unknown) {
+      toast.error("Failed to Cancel Job", err instanceof Error ? err.message : "Could not cancel detection job.");
+    }
+  };
+
+  const handleAcceptHighlight = async (highlightId: string) => {
+    try {
+      const updated = await api.highlights.accept(highlightId);
+      setHighlights((prev) => prev.map((h) => (h.id === highlightId ? updated : h)));
+      toast.success("Highlight Accepted", "Candidate marked as ACCEPTED.");
+    } catch (err: unknown) {
+      toast.error("Failed to Accept Highlight", err instanceof Error ? err.message : "Error updating status.");
+    }
+  };
+
+  const handleRejectHighlight = async (highlightId: string) => {
+    try {
+      const updated = await api.highlights.reject(highlightId);
+      setHighlights((prev) => prev.map((h) => (h.id === highlightId ? updated : h)));
+      toast.info("Highlight Rejected", "Candidate marked as REJECTED.");
+    } catch (err: unknown) {
+      toast.error("Failed to Reject Highlight", err instanceof Error ? err.message : "Error updating status.");
+    }
+  };
+
+  const handleSaveHighlightEdit = async (
+    highlightId: string,
+    updates: { start_ms: number; end_ms: number; summary: string }
+  ) => {
+    const updated = await api.highlights.update(highlightId, updates);
+    setHighlights((prev) => prev.map((h) => (h.id === highlightId ? updated : h)));
+    toast.success("Highlight Updated", "Timestamps and summary saved.");
+  };
+
+  const filteredHighlights = useMemo(() => {
+    return highlights
+      .filter((h) => {
+        if (highlightStatusFilter !== "ALL" && h.status?.toUpperCase() !== highlightStatusFilter) {
+          return false;
+        }
+        if (highlightCategoryFilter !== "ALL" && h.category !== highlightCategoryFilter) {
+          return false;
+        }
+        return true;
+      })
+      .sort((a, b) => {
+        if (highlightSortBy === "rank") {
+          return (a.rank || 999) - (b.rank || 999);
+        }
+        if (highlightSortBy === "score") {
+          return (b.composite_score || 0) - (a.composite_score || 0);
+        }
+        if (highlightSortBy === "timestamp") {
+          const aStart = a.start_ms ?? (a.start_time ? a.start_time * 1000 : 0);
+          const bStart = b.start_ms ?? (b.start_time ? b.start_time * 1000 : 0);
+          return aStart - bStart;
+        }
+        return 0;
+      });
+  }, [highlights, highlightStatusFilter, highlightCategoryFilter, highlightSortBy]);
+
+  const highlightStats = useMemo(() => {
+    const total = highlights.length;
+    const accepted = highlights.filter((h) => h.status?.toUpperCase() === "ACCEPTED").length;
+    const rejected = highlights.filter((h) => h.status?.toUpperCase() === "REJECTED").length;
+    const topScore = highlights.reduce(
+      (max, h) => Math.max(max, h.composite_score || 0),
+      0
+    );
+    return { total, accepted, rejected, topScore };
+  }, [highlights]);
 
   const handleExtractAudio = async (force = false) => {
     if (!id || !video) return;
@@ -1034,44 +1195,55 @@ export const VideoDetailPage: React.FC = () => {
 
       {/* Tab 4: Highlights */}
       {activeTab === "highlights" && (
-        <div className="pt-2">
-          {highlights.length === 0 ? (
+        <div className="pt-2 space-y-4">
+          <HighlightDetectionPanel
+            videoId={video.id}
+            hasTranscript={Boolean(transcript && transcript.status === "COMPLETED")}
+            activeJob={highlightJob}
+            onDetectRequested={handleDetectHighlights}
+            onCancelJob={handleCancelHighlightDetection}
+            statusFilter={highlightStatusFilter}
+            onStatusFilterChange={setHighlightStatusFilter}
+            categoryFilter={highlightCategoryFilter}
+            onCategoryFilterChange={setHighlightCategoryFilter}
+            sortBy={highlightSortBy}
+            onSortByChange={setHighlightSortBy}
+            stats={highlightStats}
+          />
+
+          {filteredHighlights.length === 0 ? (
             <div className="rounded-xl border border-dashed border-border bg-card/30 p-8 text-center space-y-2">
               <Sparkles className="h-6 w-6 text-muted-foreground mx-auto" />
-              <h3 className="text-sm font-semibold text-foreground">No Highlights Detected</h3>
+              <h3 className="text-sm font-semibold text-foreground">
+                {highlights.length === 0 ? "No Highlights Detected" : "No Highlights Match Filter"}
+              </h3>
               <p className="text-xs text-muted-foreground max-w-md mx-auto">
-                AI highlight candidate detection has not been executed on this asset yet.
+                {highlights.length === 0
+                  ? "AI highlight candidate detection has not been executed on this asset yet. Click 'Detect Highlights' above to score candidate clips."
+                  : "Try adjusting your status or category filters above."}
               </p>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {highlights.map((h) => {
-                const startSec = h.start_time ?? (h.start_ms ? h.start_ms / 1000 : 0);
-                const endSec = h.end_time ?? (h.end_ms ? h.end_ms / 1000 : 0);
-                return (
-                  <div key={h.id} className="p-4 rounded-xl border border-border bg-card space-y-2">
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="font-semibold text-foreground truncate">
-                        {h.hook_sentence || h.summary || `Highlight #${h.rank || 1}`}
-                      </span>
-                      <span className="font-mono text-primary font-bold">
-                        Score: {(h.composite_score * 100).toFixed(0)}%
-                      </span>
-                    </div>
-                    <p className="text-xs text-muted-foreground line-clamp-2">
-                      {h.summary || h.explanation || "No description available."}
-                    </p>
-                    <div className="flex items-center justify-between text-[11px] font-mono text-zinc-400 pt-2 border-t border-border/50">
-                      <span>
-                        {formatDuration(startSec)} - {formatDuration(endSec)}
-                      </span>
-                      <span>Duration: {formatDuration(Math.max(0, endSec - startSec))}</span>
-                    </div>
-                  </div>
-                );
-              })}
+              {filteredHighlights.map((h: Highlight) => (
+                <HighlightCard
+                  key={h.id}
+                  highlight={h}
+                  onEdit={(hl) => setEditingHighlight(hl)}
+                  onAccept={handleAcceptHighlight}
+                  onReject={handleRejectHighlight}
+                />
+              ))}
             </div>
           )}
+
+          <HighlightEditDialog
+            highlight={editingHighlight}
+            isOpen={Boolean(editingHighlight)}
+            onClose={() => setEditingHighlight(null)}
+            onSave={handleSaveHighlightEdit}
+            videoDurationSeconds={video?.duration_seconds}
+          />
         </div>
       )}
 

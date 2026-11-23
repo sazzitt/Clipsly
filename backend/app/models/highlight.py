@@ -1,6 +1,7 @@
+from datetime import datetime
 from typing import List, Optional
 import uuid
-from sqlalchemy import CheckConstraint, Float, ForeignKey, Index, Integer, String, Text
+from sqlalchemy import CheckConstraint, DateTime, Float, ForeignKey, Index, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from backend.app.models.base import Base, TimestampMixin
 
@@ -20,14 +21,22 @@ class Highlight(Base, TimestampMixin):
     duration_ms: Mapped[int] = mapped_column(Integer, nullable=False)
     hook_sentence: Mapped[str] = mapped_column(Text, nullable=False)
     summary: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    transcript_excerpt: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     hook_score: Mapped[float] = mapped_column(Float, nullable=False)
     coherence_score: Mapped[float] = mapped_column(Float, nullable=False)
     density_score: Mapped[float] = mapped_column(Float, nullable=False)
     sentiment_score: Mapped[float] = mapped_column(Float, nullable=False)
     composite_score: Mapped[float] = mapped_column(Float, nullable=False)
+    rank: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    scoring_version: Mapped[str] = mapped_column(String(16), nullable=False, default="v1")
+    explanation: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    warnings_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    detection_metadata_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     category: Mapped[str] = mapped_column(String(32), nullable=False, default="Insight")
     detection_method: Mapped[str] = mapped_column(String(32), nullable=False, default="HEURISTIC")
     status: Mapped[str] = mapped_column(String(32), nullable=False, default="CANDIDATE")
+    reviewed_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    rejection_reason: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
     # Relationships
     video: Mapped["Video"] = relationship("Video", back_populates="highlights")
@@ -39,4 +48,5 @@ class Highlight(Base, TimestampMixin):
         CheckConstraint("composite_score >= 0.0 AND composite_score <= 100.0", name="chk_composite_score"),
         Index("idx_highlights_video_score", "video_id", "composite_score"),
         Index("idx_highlights_status", "video_id", "status"),
+        Index("idx_highlights_transcript_id", "transcript_id"),
     )

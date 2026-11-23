@@ -476,11 +476,14 @@ FastAPI utilizes the modern `lifespan` context manager to orchestrate clean star
 
 ## 13. Current Status & Next Steps
 
-- **Status:** **PHASE 08 (BACKEND FOUNDATION & API INFRASTRUCTURE) COMPLETED & VERIFIED.**
+- **Status:** **PHASE 16 (AI HIGHLIGHT DETECTION & CLIP INTELLIGENCE ENGINE) COMPLETED & VERIFIED.**
 - **Implemented Architecture:**
-  - FastAPI application entrypoint with lifespan startup/shutdown lifecycle.
-  - Asynchronous SQLite with Write-Ahead Logging (WAL) and foreign key constraints.
-  - Three-layer middleware stack: Localhost Security, Correlation ID, and Request Timing.
-  - Global error envelope conforming to frontend API client requirements.
-  - Modular API v1 routers covering System, Videos, Jobs, Transcripts, Highlights, Clips, and Exports.
-- **Immediate Next Step:** Proceed to **Phase 09 (Media Pipeline & Chunked Ingestion Architecture)** upon user approval.
+  - Modular CPU-first highlight detection service (`backend/app/services/highlight_detection/`).
+  - Boundary-preserving candidate window generation with duration buckets (15-30s, 30-60s, 60-90s, custom 10-180s) and word timestamp pause trimming.
+  - Explainable 4-dimensional scoring: Hook (30%), Coherence (30%), Density (25%), Sentiment (15%).
+  - Greedy Non-Maximum Suppression (NMS) via temporal overlap (IoM $\ge 0.45$).
+  - Sequential `JobQueueManager` execution and cooperative cancellation.
+  - Transactional SQLite persistence updating `highlights` table with redetection preservation of reviewed items.
+  - Full REST API endpoints (`/api/v1/videos/{video_id}/highlights/*` and `/api/v1/highlights/*`).
+  - Interactive workstation frontend (`HighlightDetectionPanel`, `HighlightCard`, `HighlightEditDialog`, `HighlightsPage`, and `VideoDetailPage` Tab 4).
+- **Immediate Next Step:** Proceed to **Phase 17 (Video Clip Slicing & Subtitle Burn Pipeline)** upon user approval.

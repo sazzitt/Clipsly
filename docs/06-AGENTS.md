@@ -154,24 +154,25 @@ graph TD
 ---
 
 ### Module 7: Highlight Detection Agent (Heuristic Engine)
+- **Status:** **IMPLEMENTED & VERIFIED (Phase 16).**
+- **Location:** `backend/app/services/highlight_detection/` (`detector.py`, `candidate_generator.py`, `feature_extractor.py`, `scoring_engine.py`, `deduplication.py`, `ranking.py`, `schemas.py`, `validators.py`).
 - **Purpose:** Identifies and ranks compelling short-form candidate segments within target duration bounds (ADR-003).
-- **Input:** Normalized discourse map and user duration parameters ($T_{\min}=30\text{s}, T_{\max}=60\text{s}$).
-- **Output:** Ranked array of candidate highlights with 4D composite scores ($0–100$) and opening hook snippets.
+- **Input:** Transcript segments, word-level timestamps, and duration configuration ($15\text{s}-30\text{s}, 30\text{s}-60\text{s}, 60\text{s}-90\text{s}$, or custom $10\text{s}-180\text{s}$).
+- **Output:** Ranked array of candidate highlights with 4D composite scores ($0–100$), opening hook snippets, natural-language explanations, and warning flags.
 - **Responsibilities:**
-  - Execute sliding window scan ($T \in [T_{\min}, T_{\max}]$ with $10\text{s}$ step).
+  - Execute sentence boundary accumulation and word-level pause trimming without cutting words.
   - Calculate Composite Score based on:
-    - **Hook Punchiness (30%):** Evaluates opening 5 seconds against provocative lexical trigger patterns.
-    - **Thematic Coherence (30%):** Measures grammatical completeness and absence of dangling thoughts.
-    - **Information Density (25%):** Scores cadence adherence to the viral range ($130–175\text{ WPM}$).
-    - **Vocal Sentiment Modulation (15%):** Estimates energy variation and exclamation markers.
-  - Deduplicate overlapping candidate windows (Non-Maximum Suppression keeping highest score).
-  - **Optional External AI Branch:** If user configured an API key in Settings, submit transcript text to Gemini/OpenAI Flash to re-rank top candidates.
-- **Dependencies:** Heuristic scoring service; optional HTTP TLS client for external API.
-- **Failure Conditions:** Zero candidates meeting minimum score threshold ($> 50.0$).
-- **Retry Behaviour:** Automatically widen sliding window bounds by $\pm 10\text{s}$ and re-scan.
-- **Logging Requirements:** Log candidate count, score distribution, and detection duration ($< 2\text{s}$).
-- **Database Interactions:** Inserts top candidates into `highlights` table.
-- **API Interactions:** Emits SSE `job_completed` with candidate highlight count. Highlights available via `GET /api/v1/videos/{video_id}/highlights`.
+    - **Hook Strength (30%):** Evaluates opening sentence against interrogative, provocative, imperative, and direct address patterns with length penalties.
+    - **Thematic Coherence (30%):** Measures sentence completeness, terminal punctuation, and penalizes starting on conjunctions or dangling endings.
+    - **Information Density (25%):** Scores cadence adherence to viral spoken pacing ($130–180\text{ WPM}$), penalizes filler word ratios ($>6\%$) and long pauses ($\ge 1.5\text{s}$).
+    - **Vocal Sentiment Modulation (15%):** Measures emotive vocabulary, conviction certainty markers, exclamations, and humor markers.
+  - Deduplicate overlapping candidate windows using greedy Non-Maximum Suppression with Intersection over Minimum Duration ($\text{IoM} \ge 0.45$).
+  - Filter by `min_score` (default 50.0), slice top `max_results` (default 10), and assign 1-based sequential ranks.
+  - Persist candidates transactionally to `highlights` SQLite table, preserving user-reviewed `ACCEPTED` and `REJECTED` items.
+  - Cooperatively support job cancellation via sequential `JobQueueManager`.
+- **Dependencies:** Pure CPU Python text intelligence (zero VRAM overhead).
+- **Database Interactions:** Inserts/supersedes candidates in `highlights` table.
+- **API Interactions:** `POST /api/v1/videos/{video_id}/highlights/detect`, `GET /api/v1/videos/{video_id}/highlights`, `GET /api/v1/highlights/detail/{highlight_id}`, `PATCH /api/v1/highlights/{highlight_id}`, `POST /api/v1/highlights/{highlight_id}/accept`, `POST /api/v1/highlights/{highlight_id}/reject`.
 
 ---
 

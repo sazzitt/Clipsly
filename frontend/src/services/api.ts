@@ -15,6 +15,11 @@ import {
   DashboardSummary,
   ExportJob,
   Highlight,
+  HighlightDetectionJobResponse,
+  HighlightDetectionRequest,
+  HighlightListResponse,
+  HighlightRejectRequest,
+  HighlightUpdateRequest,
   PaginatedResponse,
   ProcessingJob,
   RootApiResponse,
@@ -330,8 +335,55 @@ export const api = {
   },
 
   highlights: {
-    list: (videoId: string, signal?: AbortSignal) =>
-      request<Highlight[]>(`/highlights/${videoId}`, { method: "GET", signal }),
+    list: async (
+      videoId: string,
+      params?: { min_score?: number; status?: string; category?: string },
+      signal?: AbortSignal
+    ): Promise<Highlight[]> => {
+      const query = params ? buildQueryString(params as unknown as Record<string, unknown>) : "";
+      const res = await request<HighlightListResponse | Highlight[]>(`/highlights/${videoId}${query}`, {
+        method: "GET",
+        signal,
+      });
+      if (Array.isArray(res)) return res;
+      return res.highlights || [];
+    },
+    listFull: (
+      videoId: string,
+      params?: { min_score?: number; status?: string; category?: string },
+      signal?: AbortSignal
+    ) => {
+      const query = params ? buildQueryString(params as unknown as Record<string, unknown>) : "";
+      return request<HighlightListResponse>(`/highlights/${videoId}${query}`, {
+        method: "GET",
+        signal,
+      });
+    },
+    get: (highlightId: string, signal?: AbortSignal) =>
+      request<Highlight>(`/highlights/detail/${highlightId}`, { method: "GET", signal }),
+    detect: (videoId: string, payload?: HighlightDetectionRequest, signal?: AbortSignal) =>
+      request<HighlightDetectionJobResponse>(`/videos/${videoId}/highlights/detect`, {
+        method: "POST",
+        body: JSON.stringify(payload || {}),
+        signal,
+      }),
+    update: (highlightId: string, payload: HighlightUpdateRequest, signal?: AbortSignal) =>
+      request<Highlight>(`/highlights/${highlightId}`, {
+        method: "PATCH",
+        body: JSON.stringify(payload),
+        signal,
+      }),
+    accept: (highlightId: string, signal?: AbortSignal) =>
+      request<Highlight>(`/highlights/${highlightId}/accept`, {
+        method: "POST",
+        signal,
+      }),
+    reject: (highlightId: string, payload?: HighlightRejectRequest, signal?: AbortSignal) =>
+      request<Highlight>(`/highlights/${highlightId}/reject`, {
+        method: "POST",
+        body: payload ? JSON.stringify(payload) : undefined,
+        signal,
+      }),
   },
 
   clips: {

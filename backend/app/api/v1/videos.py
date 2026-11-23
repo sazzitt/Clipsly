@@ -32,6 +32,12 @@ from backend.app.schemas.transcript import (
     TranscriptionRequest,
 )
 from backend.app.schemas.video import VideoDetailResponse, VideoUploadResponse
+from backend.app.schemas.highlight import (
+    HighlightDetectionJobResponse,
+    HighlightDetectionRequest,
+    HighlightListResponse,
+    HighlightResponse,
+)
 from backend.app.services.audio_extraction import (
     _active_extractions,
     extract_and_preprocess_audio,
@@ -858,3 +864,111 @@ async def delete_video(
     await db.delete(video)
     await db.commit()
     return {"success": True, "id": video_id, "file_unlinked": file_unlinked}
+
+
+@router.post(
+    "/{video_id}/highlights/detect",
+    response_model=HighlightDetectionJobResponse,
+    status_code=status.HTTP_202_ACCEPTED,
+    summary="Detect Video Highlights",
+    description="Submits an asynchronous highlight detection job via sequential JobQueueManager.",
+)
+async def detect_video_highlights(
+    video_id: str,
+    payload: Optional[HighlightDetectionRequest] = None,
+    db: AsyncSession = Depends(get_database),
+):
+    """Triggers highlight detection job for a specified video."""
+    video = await db.get(Video, video_id)
+    if not video:
+        raise NotFoundError(f"Video with id '{video_id}' was not found.")
+
+    from backend.app.services.queue import job_queue
+    from backend.app.services.highlight_detection.detector import (
+        _active_detections,
+        detect_highlights_pipeline,
+    )
+    from backend.app.services.highlight_detection.schemas import DetectionConfig
+
+    if job_queue.is_video_active(video_id) or video_id in _active_detections:
+        raise ConflictError(
+            f"A job is already executing or queued for video '{video_id}'.",
+            details={"video_id": video_id},
+        )
+
+    req = payload or HighlightDetectionRequest()
+    config = DetectionConfig(
+        target_duration_presets=req.target_duration_presets,
+        min_duration_seconds=req.min_duration_seconds,
+        max_duration_seconds=req.max_duration_seconds,
+        min_score=req.min_score,
+        max_results=req.max_results,
+        overlap_threshold=req.overlap_threshold,
+        hook_weight=req.hook_weight,
+        coherence_weight=req.coherence_weight,
+        density_weight=req.density_weight,
+        sentiment_weight=req.sentiment_weight,
+        force_redetect=req.force_redetect,
+    )
+
+    job_id = str(uuid.uuid4())
+    job = ProcessingJob(
+        id=job_id,
+        video_id=video_id,
+        job_type="HIGHLIGHT_DETECTION",
+        status="PENDING",
+        progress_percent=0.0,
+        current_step="Highlight detection job queued...",
+    )
+    db.add(job)
+    await db.commit()
+    await db.refresh(job)
+
+    await job_queue.submit_job(
+        job_id=job.id,
+        video_id=video_id,
+        handler=detect_highlights_pipeline,
+        job_kwargs={
+            "video_id": video_id,
+            "job_id": job.id,
+            "config": config,
+        },
+    )
+
+    return HighlightDetectionJobResponse(
+        job_id=job.id,
+        video_id=video_id,
+        status="PENDING",
+        progress_percent=0.0,
+        current_step="Highlight detection job queued...",
+        created_at=job.created_at.isoformat() if job.created_at else datetime.now(timezone.utc).isoformat(),
+    )
+
+
+@router.get(
+    "/{video_id}/highlights",
+    response_model=HighlightListResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Get Video Highlights",
+    description="Retrieves ranked highlight candidates for a video.",
+)
+async def get_video_highlights(
+    video_id: str,
+    min_score: float = Query(0.0, ge=0.0, le=100.0, description="Minimum composite score filter"),
+    status_filter: Optional[str] = Query(None, alias="status", description="Filter by candidate status"),
+    category: Optional[str] = Query(None, description="Filter by category"),
+    db: AsyncSession = Depends(get_database),
+):
+    """Retrieves ranked highlights for a video."""
+    filters = [Highlight.video_id == video_id, Highlight.composite_score >= min_score]
+    if status_filter:
+        filters.append(Highlight.status == status_filter)
+    if category:
+        filters.append(Highlight.category == category)
+
+    stmt = select(Highlight).where(*filters).order_by(Highlight.rank.asc(), Highlight.composite_score.desc())
+    result = await db.execute(stmt)
+    highlights = result.scalars().all()
+
+    items = [HighlightResponse.from_orm_model(h) for h in highlights]
+    return HighlightListResponse(video_id=video_id, total=len(items), highlights=items)

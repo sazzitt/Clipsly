@@ -37,7 +37,7 @@ async def test_validation_error_envelope(async_client: AsyncClient):
 @pytest.mark.asyncio
 async def test_not_implemented_error_envelope(async_client: AsyncClient):
     """Verifies that 501 responses return informative messages specifying activation phase."""
-    response = await async_client.post("/api/v1/highlights/detect")
+    response = await async_client.post("/api/v1/exports")
     assert response.status_code == 501
     data = response.json()
 

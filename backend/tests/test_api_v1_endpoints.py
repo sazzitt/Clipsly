@@ -60,7 +60,7 @@ async def test_transcripts_endpoints(async_client: AsyncClient):
 
 @pytest.mark.asyncio
 async def test_highlights_endpoints(async_client: AsyncClient):
-    """Verifies highlight candidate retrieval and honest 501 on detection."""
+    """Verifies highlight candidate retrieval and detection endpoint."""
     test_vid = str(uuid.uuid4())
     res = await async_client.get(f"/api/v1/highlights/{test_vid}")
     assert res.status_code == 200
@@ -68,9 +68,9 @@ async def test_highlights_endpoints(async_client: AsyncClient):
     assert data["video_id"] == test_vid
     assert data["total"] == 0
 
-    res = await async_client.post("/api/v1/highlights/detect")
-    assert res.status_code == 501
-    assert "Phase 14" in res.json()["detail"]
+    # Detection requires valid video, returning 404 if video does not exist
+    res = await async_client.post("/api/v1/highlights/detect", json={"video_id": test_vid})
+    assert res.status_code == 404
 
 
 @pytest.mark.asyncio
