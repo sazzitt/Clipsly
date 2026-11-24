@@ -20,6 +20,7 @@ from backend.app.models.subtitle_event import SubtitleEvent
 from backend.app.models.subtitle_track import SubtitleTrack
 from backend.app.services.subtitles.ass_escape import sanitize_ass_text, sanitize_word_token
 from backend.app.services.subtitles.ass_timing import (
+    cs_to_ass_timestamp,
     format_dialogue_interval,
     ms_to_centiseconds,
 )
@@ -216,6 +217,7 @@ def generate_ass_document(
     track: SubtitleTrack,
     karaoke_tag: str = r"\kf",
     custom_title: Optional[str] = None,
+    clip_duration_ms: Optional[int] = None,
 ) -> str:
     """Compiles a complete ASS v4.00+ document string from a SubtitleTrack and its SubtitleEvents.
 
@@ -229,6 +231,11 @@ def generate_ass_document(
         raise AssDocumentError("Cannot generate ASS document for null track.")
 
     title = custom_title or f"Clipsly - Clip {track.clip_id}"
+
+    # Determine permitted clip duration boundary
+    max_duration_ms = clip_duration_ms
+    if max_duration_ms is None and hasattr(track, "clip") and track.clip and hasattr(track.clip, "duration_ms"):
+        max_duration_ms = track.clip.duration_ms
 
     # 1. Script Info Section
     script_info = build_script_info_section(title=title)
@@ -245,10 +252,36 @@ def generate_ass_document(
     # Sort events deterministically by sequence_index, then start_ms
     sorted_events = sorted(track.events or [], key=lambda e: (e.sequence_index, e.start_ms))
 
+    last_end_cs = 0
+    prev_ev_start_ms = -1
+
     for ev in sorted_events:
-        # Calculate formatted ASS interval
-        start_cs, end_cs, start_str, end_str = format_dialogue_interval(ev.start_ms, ev.end_ms)
+        # Calculate formatted ASS interval respecting clip boundary
+        start_cs, end_cs, start_str, end_str = format_dialogue_interval(
+            start_ms=ev.start_ms,
+            end_ms=ev.end_ms,
+            max_end_ms=max_duration_ms,
+        )
+
+        # For sequential events that are adjacent or overlapping due to quantization expansion:
+        # Prevent dual-subtitle overlap by advancing start_cs to last_end_cs
+        if start_cs < last_end_cs and ev.start_ms >= prev_ev_start_ms:
+            start_cs = last_end_cs
+            if end_cs <= start_cs:
+                if max_duration_ms is not None:
+                    max_cs = ms_to_centiseconds(max_duration_ms)
+                    end_cs = min(max_cs, start_cs + 1)
+                    if end_cs <= start_cs:
+                        # At clip boundary limit
+                        start_cs = max(0, end_cs - 1)
+                else:
+                    end_cs = start_cs + 1
+            start_str = cs_to_ass_timestamp(start_cs)
+            end_str = cs_to_ass_timestamp(end_cs)
+
         event_dur_cs = end_cs - start_cs
+        last_end_cs = end_cs
+        prev_ev_start_ms = ev.start_ms
 
         # Parse words JSON
         words_data: Optional[List[Dict[str, Any]]] = None

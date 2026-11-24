@@ -1,41 +1,63 @@
-"""Safe ASS text escaping and Unicode sanitization utilities.
+"""Safe ASS text escaping and Unicode preservation utilities.
 
-Guarantees:
-1. Prevents arbitrary ASS override-tag injection (e.g., {\\pos}, {\\clip}, {\\alpha})
-   by sanitizing literal curly braces in spoken dialogue to full-width unicode braces (｛ and ｝).
-2. Converts newlines and carriage returns to the standard ASS line-break tag (\\N).
-3. Sanitizes literal backslashes to forward slashes (/) to prevent unintended escape sequences.
-4. Preserves commas, punctuation, unicode accents, CJK/Arabic/Cyrillic scripts, and emoji.
+Advanced SubStation Alpha (ASS) v4.00+ Text Preservation & Escaping Architecture:
+1. Curly Braces '{' and '}':
+   - In ASS dialogue, any unescaped '{' marks the opening of an override tag block.
+     Plain text inside '{...}' is treated as comment/unrecognized override codes and
+     is completely suppressed from display by libass.
+   - Escaping literal braces as '\\{' and '\\}' instructs libass to render the curly
+     braces literally while strictly preventing override block execution (e.g. {\\pos}, {\\clip}).
+2. Newlines vs Literal '\\N' Sequences:
+   - Genuine newline characters (\\r\\n, \\r, \\n) represent intentional subtitle line breaks
+     and are normalized to the canonical ASS hard-break tag '\\N'.
+   - Literal text containing '\\N', '\\n', or '\\h' (e.g. discussing code or regex) is preserved
+     on the same line by inserting a zero-width non-joiner (\\u200c) between the backslash and the
+     character ('\\' + ZWNJ + 'N'). This renders '\\N' visibly on a single line without triggering a line break.
+3. Literal Backslashes:
+   - Literal backslashes in Windows paths (e.g. 'C:\\Projects\\Clipsly') or ordinary text are
+     preserved unmodified. They are NOT converted to forward slashes.
+4. Commas, Multilingual Characters & Emojis:
+   - In ASS v4.00+ Dialogue lines, the 'Text' field is the 10th and final field
+     ('Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text').
+     Therefore, commas in dialogue text never cause field splitting and are preserved intact.
+   - Accents, CJK, Cyrillic, Arabic scripts, symbols, and emojis are preserved in standard UTF-8.
 """
 
 import re
 
+# Zero-Width Non-Joiner (U+200C) used to prevent ASS control code interpretation
+# without altering visible character glyphs or line layout.
+ZWNJ = "\u200c"
+
 
 def sanitize_ass_text(text: str) -> str:
-    """Sanitizes raw transcript or subtitle text for safe inclusion in ASS dialogue events.
+    """Sanitizes dialogue text for safe inclusion in ASS Dialogue events.
 
     Rules:
-    - Literal curly braces '{' and '}' are sanitized to full-width unicode braces '｛' (U+FF5B)
-      and '｝' (U+FF5D). This neutralizes any ASS override-tag injection attempts while visually
-      preserving the bracket glyph in rendered video.
-    - Literal backslashes are sanitized to '/' to prevent accidental control codes (e.g., \\k, \\c).
-    - Newline sequences (\\r\\n, \\r, \\n) are normalized to the explicit ASS line break '\\N'.
-    - Commas are safely preserved: since Text is the 10th (last) field in ASS Dialogue lines,
-      commas in text do not trigger field splitting.
-    - All Unicode text, accents, international scripts, and emoji are preserved unmodified.
+    - Normalizes actual newlines (CRLF, CR, LF) to ASS line-break tag '\\N'.
+    - Protects literal '\\N', '\\n', and '\\h' from triggering formatting breaks by separating with ZWNJ.
+    - Escapes literal '{' and '}' to '\\{' and '\\}' to display brackets without executing override tags.
+    - Preserves literal backslashes (e.g. Windows file paths) without altering spoken content.
+    - Preserves commas, Unicode text, accents, international scripts, and emoji unmodified.
     """
     if not text:
         return ""
 
-    # 1. Normalize line endings to ASS hard break \N
-    sanitized = text.replace("\r\n", r"\N").replace("\r", r"\N").replace("\n", r"\N")
+    # 1. Temporarily isolate genuine newline characters (CRLF, CR, LF)
+    masked = text.replace("\r\n", "\x00NEWLINE\x00")
+    masked = masked.replace("\r", "\x00NEWLINE\x00")
+    masked = masked.replace("\n", "\x00NEWLINE\x00")
 
-    # 2. Prevent override-tag injection by converting literal braces to full-width unicode braces
-    sanitized = sanitized.replace("{", "\uff5b").replace("}", "\uff5d")
+    # 2. Defend literal ASS control sequences (\N, \n, \h) so they render as literal characters
+    # instead of executing line breaks or hard spacing
+    masked = re.sub(r"\\([Nnh])", lambda m: "\\" + ZWNJ + m.group(1), masked)
 
-    # 3. Sanitize lone backslashes that are not part of our explicit \N line breaks
-    # Replace any backslash not immediately followed by 'N' with '/'
-    sanitized = re.sub(r"\\(?!N)", "/", sanitized)
+    # 3. Escape curly braces so user text (e.g. '{value}' or '{\pos(540,960)}') cannot
+    # trigger ASS override tags while visibly preserving the braces
+    masked = masked.replace("{", r"\{").replace("}", r"\}")
+
+    # 4. Restore genuine newlines as canonical ASS line breaks (\N)
+    sanitized = masked.replace("\x00NEWLINE\x00", r"\N")
 
     return sanitized
 
@@ -43,20 +65,20 @@ def sanitize_ass_text(text: str) -> str:
 def sanitize_word_token(word: str) -> str:
     """Sanitizes an individual word token for karaoke tag formatting.
 
-    Preserves attached punctuation (e.g., 'hello,' or 'world!') while neutralizing
-    any characters that could break ASS tag formatting.
+    Preserves attached punctuation and legitimate word characters while ensuring
+    braces and backslash control sequences cannot break ASS tag formatting.
     """
     if not word:
         return ""
 
-    sanitized = word.strip()
-    if not sanitized:
+    token = word.strip()
+    if not token:
         return ""
 
-    # Sanitize braces in individual tokens
-    sanitized = sanitized.replace("{", "\uff5b").replace("}", "\uff5d")
+    # Protect literal \N, \n, \h in single word tokens
+    token = re.sub(r"\\([Nnh])", lambda m: "\\" + ZWNJ + m.group(1), token)
 
-    # Sanitize backslashes in words
-    sanitized = sanitized.replace("\\", "/")
+    # Escape braces so word tokens like '{value}' render visibly without breaking karaoke tags
+    token = token.replace("{", r"\{").replace("}", r"\}")
 
-    return sanitized
+    return token

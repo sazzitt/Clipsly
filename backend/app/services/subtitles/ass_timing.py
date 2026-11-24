@@ -3,35 +3,63 @@
 Advanced SubStation Alpha (ASS) format utilizes centisecond (1/100th second = 10ms)
 precision for all timeline events and karaoke tags.
 
-Documented Precision Loss:
+Deterministic Half-Up Rounding Policy:
 - 1 centisecond = 10 milliseconds.
-- Any timecode delta smaller than 10ms cannot be uniquely represented in ASS format.
-- Timestamps are rounded to the nearest centisecond via round(ms / 10.0).
-- Dialogue events with duration < 10ms (which round to start_cs == end_cs) are
-  promoted to end_cs = start_cs + 1 (10ms minimum) to ensure Start < End.
+- Non-negative millisecond values are converted using explicit half-up rounding:
+    centiseconds = (milliseconds + 5) // 10
+  Ties (ending in .5ms / 5ms after division) are deterministically rounded UP to the
+  next integer centisecond.
+- This explicit integer formulation avoids floating-point inaccuracies and avoids
+  Python's built-in round() ties-to-even (bankers rounding) behavior.
+- Examples:
+    0ms -> 0cs
+    4ms -> 0cs
+    5ms -> 1cs
+    6ms -> 1cs
+    14ms -> 1cs
+    15ms -> 2cs
+    16ms -> 2cs
+    24ms -> 2cs
+    25ms -> 3cs
+    26ms -> 3cs
+    1000ms -> 100cs
+    1005ms -> 101cs
+
+Boundary and Monotonicity Guarantees:
+- start_cs >= 0
+- end_cs > start_cs (strictly earlier start time, minimum 1 centisecond duration)
+- Dialogue events with duration < 10ms that round to start_cs == end_cs (e.g. 1ms-9ms)
+  are guaranteed at least 1 centisecond duration (end_cs = start_cs + 1).
+- When a clip upper bound (max_end_ms) is provided, quantization will never expand
+  the event past that boundary: if end_cs reaches max_end_cs, start_cs is shifted
+  backwards (start_cs = max(0, end_cs - 1)).
 """
 
-from typing import Tuple
+from typing import Optional, Tuple
 
 
 def ms_to_centiseconds(milliseconds: int) -> int:
-    """Converts integer milliseconds to integer centiseconds with deterministic rounding.
+    """Converts integer milliseconds to integer centiseconds using deterministic half-up rounding.
+
+    Formula:
+        (milliseconds + 5) // 10
 
     Raises:
         ValueError: If milliseconds is negative.
     """
     if milliseconds < 0:
         raise ValueError(f"Timestamp cannot be negative, got {milliseconds}ms.")
-    return int(round(milliseconds / 10.0))
+    return (milliseconds + 5) // 10
 
 
 def cs_to_ass_timestamp(total_centiseconds: int) -> str:
-    """Formats integer centiseconds into the canonical ASS format 'H:MM:SS.cc'.
+    """Formats integer centiseconds into canonical ASS format 'H:MM:SS.cc'.
 
     Examples:
         0 -> '0:00:00.00'
         150 -> '0:00:01.50'
         366125 -> '1:01:01.25'
+        3600000 -> '10:00:00.00'
     """
     if total_centiseconds < 0:
         raise ValueError(f"Centiseconds cannot be negative, got {total_centiseconds}.")
@@ -47,21 +75,22 @@ def cs_to_ass_timestamp(total_centiseconds: int) -> str:
 
 
 def ms_to_ass_timestamp(milliseconds: int) -> str:
-    """Converts integer milliseconds to canonical ASS format 'H:MM:SS.cc'.
-
-    Precision Notice:
-        Values are rounded to the nearest 10ms boundary. Sub-10ms precision is lost.
-    """
+    """Converts integer milliseconds to canonical ASS format 'H:MM:SS.cc' via half-up rounding."""
     cs = ms_to_centiseconds(milliseconds)
     return cs_to_ass_timestamp(cs)
 
 
-def format_dialogue_interval(start_ms: int, end_ms: int) -> Tuple[int, int, str, str]:
+def format_dialogue_interval(
+    start_ms: int,
+    end_ms: int,
+    max_end_ms: Optional[int] = None,
+) -> Tuple[int, int, str, str]:
     """Calculates valid start and end centiseconds and canonical timestamp strings for an ASS dialogue line.
 
     Guarantees:
     - start_cs >= 0
-    - end_cs > start_cs (strictly earlier start time, minimum 1 centisecond duration)
+    - end_cs > start_cs (strictly positive duration >= 1 centisecond)
+    - If bounded by max_end_ms, end_cs never exceeds ms_to_centiseconds(max_end_ms)
     - Returns: (start_cs, end_cs, start_time_str, end_time_str)
 
     Raises:
@@ -76,8 +105,24 @@ def format_dialogue_interval(start_ms: int, end_ms: int) -> Tuple[int, int, str,
 
     start_cs = ms_to_centiseconds(start_ms)
     end_cs = ms_to_centiseconds(end_ms)
+    max_end_cs = ms_to_centiseconds(max_end_ms) if max_end_ms is not None else None
 
-    # Prevent zero-duration dialogue event caused by centisecond rounding loss
+    # Guarantee minimum 1 centisecond duration
+    if end_cs <= start_cs:
+        if max_end_cs is not None and start_cs >= max_end_cs:
+            # At or past upper boundary: clamp end_cs to max_end_cs, move start_cs down
+            end_cs = max_end_cs
+            start_cs = max(0, end_cs - 1)
+        else:
+            end_cs = start_cs + 1
+
+    # Ensure quantization never silently expands beyond permitted boundary
+    if max_end_cs is not None and end_cs > max_end_cs:
+        end_cs = max_end_cs
+        if start_cs >= end_cs:
+            start_cs = max(0, end_cs - 1)
+
+    # In case max_end_cs == 0
     if end_cs <= start_cs:
         end_cs = start_cs + 1
 
