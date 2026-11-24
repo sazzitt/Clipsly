@@ -98,6 +98,10 @@ class Settings(BaseSettings):
         return self.STORAGE_DIR / "temp"
 
     @property
+    def SUBTITLES_DIR(self) -> Path:
+        return self.STORAGE_DIR / "subtitles"
+
+    @property
     def WHISPER_MODELS_DIR(self) -> Path:
         return self.DATA_DIR / "models" / "whisper"
 
@@ -112,6 +116,7 @@ class Settings(BaseSettings):
         self.CACHE_DIR.mkdir(parents=True, exist_ok=True)
         self.TEMP_DIR.mkdir(parents=True, exist_ok=True)
         self.AUDIO_DIR.mkdir(parents=True, exist_ok=True)
+        self.SUBTITLES_DIR.mkdir(parents=True, exist_ok=True)
         self.WHISPER_MODELS_DIR.mkdir(parents=True, exist_ok=True)
 
 

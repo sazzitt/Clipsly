@@ -28,11 +28,14 @@ from backend.app.services.clip_generation import (
 )
 from backend.app.services.queue import job_queue
 from backend.app.services.subtitles import (
+    AssDocumentError,
     SubtitleGenerateRequest,
     SubtitleTrackResponse,
     SubtitleValidationError,
+    compile_and_save_ass_for_clip,
     create_subtitle_track_for_clip,
     get_active_subtitle_track_for_clip,
+    read_ass_file,
 )
 from backend.app.models.subtitle_track import SubtitleTrack
 
@@ -739,12 +742,39 @@ async def get_active_clip_subtitles(
 
 @router.get(
     "/{clip_id}/subtitles.ass",
-    status_code=status.HTTP_501_NOT_IMPLEMENTED,
     summary="Export Subtitles (ASS)",
-    description="Generates styled Advanced SubStation Alpha (.ass) subtitle file (activates in Phase 18 — Subtitle & Caption Engine)."
+    description="Generates styled Advanced SubStation Alpha (.ass) subtitle file with word-level karaoke timing.",
 )
-async def get_clip_subtitles(clip_id: str):
-    """Placeholder endpoint for ASS subtitle generation."""
-    raise NotImplementedFeatureError(
-        "ASS subtitle generation is not implemented yet. This functionality belongs to Phase 18 — Subtitle & Caption Engine. The endpoint remains intentionally unavailable during Phase 17."
+async def get_clip_subtitles(
+    clip_id: str,
+    db: AsyncSession = Depends(get_database),
+):
+    """Returns the compiled .ass subtitle file for the clip's active subtitle track."""
+    stmt_clip = select(Clip).where(Clip.id == clip_id)
+    clip_res = await db.execute(stmt_clip)
+    clip = clip_res.scalar_one_or_none()
+    if not clip:
+        raise NotFoundError(f"Clip '{clip_id}' not found.")
+
+    track = await get_active_subtitle_track_for_clip(session=db, clip_id=clip_id)
+    if not track:
+        raise NotFoundError(f"No active subtitle track found for clip '{clip_id}'. Please generate subtitles first.")
+
+    # Check if compiled file exists on disk, compile if missing
+    ass_content = read_ass_file(clip_id)
+    if not ass_content:
+        await compile_and_save_ass_for_clip(session=db, clip_id=clip_id)
+        ass_content = read_ass_file(clip_id)
+
+    if not ass_content:
+        raise AppException(
+            message=f"Failed to retrieve or compile ASS subtitle document for clip '{clip_id}'.",
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            error_code="SUBTITLE_COMPILATION_FAILED",
+        )
+
+    return Response(
+        content=ass_content,
+        media_type="text/x-ssa; charset=utf-8",
+        headers={"Content-Disposition": f'attachment; filename="{clip_id}.ass"'},
     )

@@ -137,11 +137,11 @@ async def test_clips_lifecycle(async_client: AsyncClient):
     assert res.json()["title"] == "Updated Title"
     assert res.json()["subtitle_font_size"] == 28
 
-    # ASS subtitles returns 501
+    # ASS subtitles returns 404 when no active subtitle track has been generated yet
     res = await async_client.get(f"/api/v1/clips/{clip_id}/subtitles.ass")
-    assert res.status_code == 501
-    assert "Phase 18" in res.json()["detail"]
-    assert "Phase 15" not in res.json()["detail"]
+    assert res.status_code == 404
+    assert res.json()["error_code"] == "RESOURCE_NOT_FOUND"
+    assert "No active subtitle track found" in res.json()["detail"]
 
     # Delete Clip
     res = await async_client.delete(f"/api/v1/clips/{clip_id}")

@@ -574,9 +574,12 @@ async def test_subtitles_api_endpoints(async_client: AsyncClient):
     missing_res = await async_client.get(f"/api/v1/clips/{uuid.uuid4()}/subtitles")
     assert missing_res.status_code == 404
 
-    # 4. Existing .ass endpoint remains 501
+    # 4. ASS endpoint returns 200 OK with compiled ASS content
     ass_res = await async_client.get(f"/api/v1/clips/{clip_id}/subtitles.ass")
-    assert ass_res.status_code == 501
+    assert ass_res.status_code == 200
+    assert "text/x-ssa" in ass_res.headers["content-type"]
+    assert "[Script Info]" in ass_res.text
+    assert "[Events]" in ass_res.text
 
 
 @pytest.mark.asyncio

@@ -11,6 +11,8 @@ from backend.app.models.subtitle_event import SubtitleEvent
 from backend.app.models.subtitle_track import SubtitleTrack
 from backend.app.models.transcript import Transcript
 from backend.app.models.transcript_segment import TranscriptSegment
+from backend.app.services.subtitles.ass_generator import generate_ass_document
+from backend.app.services.subtitles.ass_storage import atomic_write_ass_file, read_ass_file
 from backend.app.services.subtitles.schemas import (
     CaptionEventData,
     NormalizedWord,
@@ -250,6 +252,17 @@ async def create_subtitle_track_for_clip(
         session.add(db_event)
         db_events.append(db_event)
 
+    # 7. Compile ASS document and save atomically
+    try:
+        track.events = db_events
+        ass_doc = generate_ass_document(track=track)
+        ass_path = atomic_write_ass_file(clip_id=clip_id, content=ass_doc)
+        track.ass_file_path = str(ass_path)
+        track.compile_status = "COMPILED"
+    except Exception as e:
+        logger.warning("Initial ASS document compilation deferred or failed for clip %s: %s", clip_id, e)
+        track.compile_status = "DRAFT"
+
     await session.commit()
 
     # Reload track with events for caller
@@ -274,3 +287,22 @@ async def get_active_subtitle_track_for_clip(
     )
     res = await session.execute(stmt)
     return res.scalar_one_or_none()
+
+
+async def compile_and_save_ass_for_clip(
+    session: AsyncSession,
+    clip_id: str,
+) -> tuple[SubtitleTrack, str]:
+    """Compiles ASS content for the active subtitle track of a clip and saves to disk atomically."""
+    track = await get_active_subtitle_track_for_clip(session=session, clip_id=clip_id)
+    if not track:
+        raise ValueError(f"No active subtitle track found for clip '{clip_id}'.")
+
+    ass_doc = generate_ass_document(track=track)
+    ass_path = atomic_write_ass_file(clip_id=clip_id, content=ass_doc)
+
+    track.ass_file_path = str(ass_path)
+    track.compile_status = "COMPILED"
+    await session.commit()
+
+    return track, ass_doc
